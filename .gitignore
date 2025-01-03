@@ -1,0 +1,33 @@
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+!requirements.txt
+!README.md
+!about.md
+
+!main.py
+!utils.py
+!logger.py
+
+!unit_registry.py
+!tool_registry.py
+
+!intent_recognizer.py
+!recall_recognizer.py
+!memory_graph.py
+!working_memory.py
+
+!units/
+!units/*.py
+
+!tools/
+!tools/*.py
+
+!doc/
+!doc/**/*
+
+# !pytest.ini
+# !tests/
+# !tests/*.py

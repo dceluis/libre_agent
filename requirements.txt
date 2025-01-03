@@ -1,0 +1,11 @@
+schedule==1.2.0
+Pillow==10.0.0
+networkx==3.0
+colorama==0.4.6       # If using colorama
+pytest==7.2.0
+pytest-mock==3.10.0
+
+fastapi
+uvicorn
+litellm==1.55.9
+prompt_toolkit
