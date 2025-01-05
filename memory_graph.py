@@ -58,9 +58,9 @@ class MemoryGraph:
         logger.info("Memory graph saved successfully.")
 
     def generate_memory_id(self):
-        timestamp = int(time.time() * 1000)  # Milliseconds
+        timestamp = int(time.time() * 1000)
         random_number = random.randint(0, 9999)
-        return f"mem_{timestamp}_{random_number:04}"
+        return f"mem_{random_number:04}_{timestamp}"
 
     def add_memory(self, memory_type, content, metadata=None, parent_memory_ids=None, timestamp=None):
         memory_id = self.generate_memory_id()

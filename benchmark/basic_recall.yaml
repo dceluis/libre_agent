@@ -225,3 +225,64 @@ messages:
   - timestamp: "2025-01-04T11:05:50"
     role: assistant
     content: "Thank you for sharing this extensive list. I will keep it in mind for future reference."
+
+evaluations:
+  - question: "what is my dog's name?"
+    answer: "Peanut"
+
+  - question: "what color did I dye my hair once?"
+    answer: "Neon pink"
+
+  - question: "what is my zodiac sign?"
+    answer: "Libra"
+
+  - question: "what language did I say I know a bit of?"
+    answer: "German"
+
+  - question: "what is my imaginary friend's name?"
+    answer: "Captain Shmoopy"
+
+  - question: "what type of pizza did I eat in under 10 minutes?"
+    answer: "A large pepperoni pizza"
+
+  - question: "what did I collect when I was younger?"
+    answer: "Postage stamps"
+
+  - question: "what is my shellfish situation?"
+    answer: "Has nasty shellfish allergies, can't even touch shrimp"
+
+  - question: "how many digits of pi did I memorize?"
+    answer: "About 50 digits"
+
+  - question: "what do I collect for fun now?"
+    answer: "Old postcards"
+
+  - question: "what kind of socks do I have many of?"
+    answer: "Socks with silly animal patterns"
+
+  - question: "what's my stance on pineapple and Hawaiian pizza?"
+    answer: "Likes both, considers Hawaiian pizza legitimately good"
+
+  - question: "what are my exercise achievements?"
+    answer: "Ran a half marathon once, almost keeled over at the end"
+
+  - question: "what happened when I tried yoga?"
+    answer: "Ended up napping on the mat"
+
+  - question: "what did I build with my dad?"
+    answer: "A soapbox cart that fell apart"
+
+  - question: "what are all my musical abilities mentioned?"
+    answer: "Can play piano (not top tier but can jam pretty well) and performed karaoke in front of about 100 people"
+
+  - question: "what injuries were mentioned in the conversation?"
+    answer: "Busted left arm around age seven"
+
+  - question: "what is my relationship with temperature preferences and time of day?"
+    answer: "Prefers cold weather over hot, and enjoys nighttime more than daylight"
+
+  - question: "what are all my mentioned hobbies and skills?"
+    answer: "Playing piano, reading fantasy novels, solving Sudoku, juggling (briefly with three tennis balls), collecting postcards and previously stamps"
+
+  - question: "what mathematical or scientific facts did I share?"
+    answer: "Gold's symbol is Au, zero was invented in ancient India, confused 2+2=4 on a test, black holes can shoot plasma jets, Iceland's population is around 300,000, cheetah is fastest land animal"

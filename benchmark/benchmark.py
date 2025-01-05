@@ -1,8 +1,16 @@
 import yaml
+import traceback
 import sys
 import os
+import time
 import argparse
 from datetime import datetime
+
+import litellm
+# disable litellm logging
+litellm.suppress_debug_info = True
+
+from evaluator import Evaluator
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -11,12 +19,12 @@ from working_memory import WorkingMemory
 from logger import logger
 from utils import load_units, load_tools
 
-def populate_memory_graph_from_yaml(yaml_path: str, memory_graph_path: str):
+
+base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
+
+def populate_memory_graph(data: dict, memory_graph_path: str):
     mg = memory_graph
     mg.set_graph_file_path(memory_graph_path)
-
-    with open(yaml_path, 'r', encoding='utf-8') as f:
-        data = yaml.safe_load(f)
 
     messages = data.get("messages", [])
     wm = WorkingMemory()
@@ -38,14 +46,53 @@ def populate_memory_graph_from_yaml(yaml_path: str, memory_graph_path: str):
 
     logger.info(f"Populated memory graph at {memory_graph_path} with {len(messages)} messages.")
 
-    return wm
+def run_scenario(run_id: str, scenario_name: str, data: dict):
+    run_dir = os.path.join(base_runs_dir, run_id)
 
-def run(run_id: str, run_dir: str):
+    evals = data.get("evaluations", [])
+
+    for idx, eval in enumerate(evals):
+        # Create a temporary graph file within the run directory
+        temp_graph_filename = f'memory_graph_{scenario_name}_{idx}.pkl'
+        temp_graph_path = os.path.join(run_dir, temp_graph_filename)
+
+        # Populate the memory graph for each YAML file
+        populate_memory_graph(data, temp_graph_path)
+
+        question = eval.get("question")
+        references = eval.get("answer", [])
+        if isinstance(references, str):
+            references = [references]
+
+        wm = WorkingMemory()
+        wm.add_interaction("user", question, metadata={'unit_name': 'User'})
+        wm.execute()
+
+        answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, limit=1)
+
+        if answer_memory:
+            answer = answer_memory[0]['content']
+        else:
+            answer = ""
+
+        evaluator = Evaluator()
+
+        result = evaluator.evaluate_answer(question=question, answer=answer, references=references)
+
+        print("======================")
+        print(f"Question: {question}")
+        print(f"Answer: {answer}")
+        print(f"Result: {result}")
+        print("======================")
+        time.sleep(2)
+
+def run(run_id: str):
     load_units()
     load_tools()
 
     # Find all YAML files in the current file's directory
     current_dir = os.path.dirname(__file__)
+
     yaml_paths = [
         os.path.join(current_dir, f)
         for f in os.listdir(current_dir)
@@ -55,19 +102,13 @@ def run(run_id: str, run_dir: str):
     logger.debug(f"Found YAML files: {yaml_paths}")
 
     for yaml_path in yaml_paths:
-        # Create a temporary graph file within the run directory
-        temp_graph_filename = f'memory_graph_{os.path.splitext(os.path.basename(yaml_path))[0]}.pkl'
-        temp_graph_path = os.path.join(run_dir, temp_graph_filename)
+        with open(yaml_path, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
 
-        # Populate the memory graph for each YAML file
-        wm = populate_memory_graph_from_yaml(yaml_path, temp_graph_path)
+        scenario_name = os.path.splitext(os.path.basename(yaml_path))[0]
 
-        logger.info(f"Temporary memory graph created at {temp_graph_path}")
 
-        question = "what things do i like?"
-        # question = "What is my dog's name?"
-        wm.add_interaction("user", question, metadata={'unit_name': 'User'})
-        wm.execute()
+        run_scenario(run_id, scenario_name, data)
 
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
@@ -75,7 +116,6 @@ def main():
 
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
     os.makedirs(base_runs_dir, exist_ok=True)
 
     # Create a directory for this run
@@ -85,10 +125,10 @@ def main():
     logger.info(f"Starting run {run_id}. All artifacts will be stored in {run_dir}")
 
     try:
-        run(run_id, run_dir)
+        run(run_id)
         logger.info(f"Run {run_id} completed successfully.")
     except Exception as e:
-        logger.error(f"Run {run_id} failed with error: {e}")
+        logger.error(f"Run {run_id} failed with error: {e}\n{traceback.format_exc()}")
         sys.exit(1)
 
 if __name__ == "__main__":

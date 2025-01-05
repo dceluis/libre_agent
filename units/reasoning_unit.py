@@ -67,9 +67,6 @@ class ReasoningUnit(BaseUnit):
 
         :param working_memory: Which working memory to use (if any).
         :param mode: "quick" or "deep".
-        :param inside_chat: Boolean indicating if we are in a chat context.
-                            If True, the Chat Unit will read the suggestions.
-                            If False, this reflection is happening outside a direct user chat.
         """
         if mode == "quick":
             return self.quick_reflection(working_memory)

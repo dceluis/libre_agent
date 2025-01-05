@@ -26,10 +26,12 @@
 !tools/*.py
 
 !doc/
-!doc/**/*
+!doc/**/*.md
 
 !benchmark/
-!benchmark/**/*
+!benchmark/*.py
+!benchmark/*.yml
+!benchmark/*.yaml
 benchmark/tmp/**/*
 
 # !pytest.ini

@@ -12,6 +12,7 @@ class RecallRecognizer:
         memories = memories[::-1]
 
         # exclude provided memory ids
+        logger.debug(f"Excluded memories: {exclude_memory_ids}")
         if exclude_memory_ids:
             memories = [m for m in memories if m['memory_id'] not in exclude_memory_ids]
 
