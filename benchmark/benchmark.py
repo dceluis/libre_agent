@@ -68,7 +68,7 @@ def run_scenario(run_id: str, scenario_name: str, data: dict):
         wm.add_interaction("user", question, metadata={'unit_name': 'User'})
         wm.execute()
 
-        answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, limit=1)
+        answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, last=1)
 
         if answer_memory:
             answer = answer_memory[0]['content']
@@ -79,11 +79,11 @@ def run_scenario(run_id: str, scenario_name: str, data: dict):
 
         result = evaluator.evaluate_answer(question=question, answer=answer, references=references)
 
-        print("======================")
+        print("==============================================================")
         print(f"Question: {question}")
         print(f"Answer: {answer}")
         print(f"Result: {result}")
-        print("======================")
+        print("==============================================================")
         time.sleep(2)
 
 def run(run_id: str):

@@ -14,7 +14,7 @@
 !unit_registry.py
 !tool_registry.py
 
-!intent_recognizer.py
+!forget_recognizer.py
 !recall_recognizer.py
 !memory_graph.py
 !working_memory.py

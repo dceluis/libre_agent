@@ -7,36 +7,57 @@ LibreAgent is a cognitive architecture for a pseudo-personal assistant that main
 1. **Clone the Repository:**
 
     ```bash
-    git clone https://github.com/dceluis/libreagent.git
-    cd libreagent
+    git clone https://github.com/dceluis/libre_agent.git
+    cd libre_agent
     ```
 
-2. **Install Dependencies:**
+2. **Create a Virtual Environment (Optional but Recommended):**
 
-    Ensure you have [Go](https://golang.org/dl/) installed (version 1.20 or higher).
+    It's good practice to use a virtual environment to manage dependencies.
 
     ```bash
-    go mod tidy
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+3. **Install dependencies:**
+
+    ```bash
+    pip install --upgrade pip
+    pip install -r requirements.txt
     ```
 
-3. **Set Environment Variables:**
+4. **Set Environment Variables:**
 
-    Create a `.env` file or set environment variables as needed, especially for API keys.
-
-4. **Run the Application:**
+    Create a .env file in the root directory or set environment variables as needed, especially for API keys.
 
     ```bash
-    go run ./cmd
+    touch .env
+    ```
+
+    Add your environment variables to the .env file:
+
+    ```env
+    GEMINI_API_KEY=your_api_key_here
     ```
 
 ## Usage
-
 LibreAgent initializes various units and tools, sets up memory management, and starts listening for user input. It schedules periodic tasks to maintain and update its core memory and personality traits.
 
-## Contributing
+To run LibreAgent, use the following command:
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+```bash
+python main.py
+```
 
-## License
+Command-Line Arguments:
+ * --deep-schedule: Interval in minutes for deep reflections (default: 10).
+ * --quick-schedule: Interval in minutes for quick reflections (default: 5).
+ * --print-internals: If set, internal memories will be printed to the console.
 
-MIT License
+Example:
+
+```bash
+python main.py --deep-schedule=4 --quick-schedule=2 --print-internals
+```
+
+This command schedules deep reflections every 4 minutes and quick reflections every 2 minutes while printing internal memories.

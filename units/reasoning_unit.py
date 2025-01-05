@@ -1,22 +1,18 @@
 from litellm import completion
 import traceback
-import time
 import re
 import os
 from colorama import init, Fore, Style
 
-from units.base_unit import BaseUnit
-from working_memory import WorkingMemory
 from logger import logger
 from memory_graph import memory_graph
-from unit_registry import UnitRegistry
 from tool_registry import ToolRegistry
 from utils import get_world_state_section, format_memories
 
 init(autoreset=True)
 
 
-class ReasoningUnit(BaseUnit):
+class ReasoningUnit():
     unit_name = "Reasoning Unit"
 
     @classmethod
@@ -51,7 +47,7 @@ class ReasoningUnit(BaseUnit):
                 existing = memory_graph.get_memories(
                     memory_type='personality',
                     metadata={'unit_name': self.unit_name},
-                    limit=1
+                    last=1
                 )
                 if existing:
                     traits = existing[0]['content']
@@ -149,7 +145,7 @@ capabilities. Not all tools are available in every mode.
         last_reflections = memory_graph.get_memories(
             memory_type='internal',
             metadata={'unit_name': self.unit_name},
-            limit=1
+            last=1
         )
         last_reflection = last_reflections[0]['content'] if last_reflections else "No prior reflection."
 
@@ -157,18 +153,17 @@ capabilities. Not all tools are available in every mode.
 
     def quick_reflection(self, working_memory):
         if not working_memory:
-            working_memory = WorkingMemory()
-            logger.warning(f"Created a new WorkingMemory internally for ReasoningUnit with ID={working_memory.id}")
+            logger.error(f"No internal WorkingMemory for ReasoningUnit")
+            return
 
         # Retrieve system goals from core memory
         core_mem = memory_graph.get_core_memory()
         system_goals = core_mem.get('content', 'No system goals defined.') if core_mem else "No system goals defined."
 
         # Gather recent memories for emotional continuity
-        recent_memories = working_memory.get_memories(limit=10)
+        recent_memories = working_memory.get_memories(last=10)
         # Exclude recalled memories
         recent_memories = [mem for mem in recent_memories if mem['metadata'].get('recalled', False) != True]
-        recent_memories = recent_memories[::-1]
 
         recalled_memories = working_memory.get_memories(metadata={'recalled': True})
 
@@ -201,7 +196,7 @@ You are currently operating in quick mode.
         instruction = f"""
 First, observe the latest state of the world and the results of your actions, including new interactions and memories.
 
-Then, produce a new reflection that continues the last reflection, optionally including ephemeral emotional tags or personal states (e.g., *slightly anxious*, etc.).
+Then, produce a new reflection that continues the last reflection.
 
 Write the reflection in first-person.
 
@@ -262,16 +257,15 @@ from the following list of available tools:
 
     def deeper_reflection(self, working_memory):
         if not working_memory:
-            working_memory = WorkingMemory()
-            logger.warning(f"Created a new WorkingMemory internally for ReasoningUnit with ID={working_memory.id}")
+            logger.error(f"No internal WorkingMemory for ReasoningUnit")
+            return
 
         try:
             core_mem = memory_graph.get_core_memory()
             system_goals = core_mem.get('content', 'No system goals defined.') if core_mem else "No system goals defined."
 
             # Get some recent external memories
-            recent_memories = memory_graph.get_memories(limit=20)
-            recent_memories = recent_memories[::-1]  # reverse order
+            recent_memories = memory_graph.get_memories(last=20)
 
             if not recent_memories:
                 logger.debug("No recent memories found for deeper reflection.")
@@ -300,7 +294,7 @@ You are currently operating in deep mode.
             instruction = f"""
 First, observe the latest state of the world and the results of your actions, including new interactions and memories.
 
-Then, produce a new reflection that continues the last reflection, optionally including ephemeral emotional tags or personal states (e.g., *slightly anxious*, etc.).
+Then, produce a new reflection that continues the last reflection.
 
 Write the reflection in first-person.
 
@@ -424,6 +418,3 @@ from the following list of available tools:
                             metadata={'unit_name': self.unit_name}
                         )
                     logger.warning(f"Tool '{tool_name}' not found in registry.")
-
- # Finally, register this single merged unit with the UnitRegistry.
-UnitRegistry.register_unit(ReasoningUnit)

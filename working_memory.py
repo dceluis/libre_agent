@@ -4,7 +4,8 @@ import asyncio
 from memory_graph import memory_graph
 from logger import logger
 from recall_recognizer import RecallRecognizer
-from unit_registry import UnitRegistry
+from forget_recognizer import ForgetRecognizer
+from units.reasoning_unit import ReasoningUnit
 
 class WorkingMemory:
     def __init__(self):
@@ -118,17 +119,27 @@ class WorkingMemory:
 
         self.add_memory('external', content, parent_memory_ids=parent_memory_ids, metadata=metadata)
 
-    def get_memories(self, limit=None, memory_type=None, metadata=None, sort='timestamp', reverse=True):
+    def get_memories(self, first=None, last=None, memory_type=None, metadata=None, sort='timestamp', reverse=False):
         mems = [
             d for d in self.memories
             if (memory_type is None or d.get('memory_type') == memory_type)
             and (metadata is None or all(d.get('metadata', {}).get(k) == v for k, v in metadata.items()))
         ]
         sorted_mems = sorted(mems, key=lambda x: x.get(sort, 0), reverse=reverse)
-        if limit is not None:
-            result = sorted_mems[:limit]
+
+        if first and last:
+            raise ValueError("Cannot specify both 'first' and 'last' parameters simultaneously")
+        elif first:
+            limit = first
+            result = sorted_mems[:first]
+        elif last:
+            result = sorted_mems[-last:]
+            limit = last
         else:
+            limit = None
             result = sorted_mems
+
+
         mem_ids = [m['memory_id'] for m in result]
         logger.debug(
             f"get_memories called with memory_type='{memory_type}', metadata='{metadata}', sort='{sort}', limit={limit}. "
@@ -137,16 +148,26 @@ class WorkingMemory:
         return result
 
     def get_last_user_input(self):
-        memories = memory_graph.get_memories(
+        memories = self.get_memories(
             metadata={'working_memory_id': self.id, 'role': 'user'},
-            limit=1,
+            last=1,
             memory_type='external',
         )
         if memories:
             return memories[0]['content']
         return None
 
-    def _populate_recall(self, user_prompt):
+    def get_last_assistant_output(self):
+        memories = self.get_memories(
+            metadata={'working_memory_id': self.id, 'role': 'assistant'},
+            last=1,
+            memory_type='external',
+        )
+        if memories:
+            return memories[0]['content']
+        return None
+
+    def _recall(self, user_prompt):
         exclude_ids = [m['memory_id'] for m in self.memories]
         rr = RecallRecognizer()
         recalled = rr.recall_memories(user_prompt, exclude_memory_ids=exclude_ids)
@@ -156,19 +177,40 @@ class WorkingMemory:
         self.memories.extend(recalled)
         logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.id}")
 
-    def execute(self):
+    def _forget(self, assistant_prompt):
+        ephemeral_mems = self.get_memories(metadata={'recalled': True})
+
+        fr = ForgetRecognizer()
+        pruned = fr.check_if_used(assistant_prompt, ephemeral_mems)
+        pruned_ids =  [m['memory_id'] for m in pruned]
+
+        new_nemories = []
+        for mem in self.memories:
+            if mem['memory_id'] in pruned_ids:
+                logger.info(f"pruning memory {mem['memory_id']} from WM {self.id}, used by assistant")
+                continue
+            new_nemories.append(mem)
+
+        self.memories = new_nemories
+        logger.info(f"{len(pruned_ids)} memories pruned from WorkingMemory {self.id}")
+
+    def execute(self, user_input=None):
         last_user_input = self.get_last_user_input()
 
         if last_user_input:
-            self._populate_recall(last_user_input)
+            self._recall(last_user_input)
 
-        units = UnitRegistry.get_units()
+        unit = ReasoningUnit()
 
-        for unit_info in units:
-            unit_obj = unit_info["class"]()
-            inside_chat = bool(self.chat_interface)
-            logger.info(f"Executing unit {unit_info['name']} inside_chat={inside_chat}")
-            try:
-                return unit_obj.execute(self)
-            except Exception as e:
-                logger.error(f"Unit {unit_info['name']} failed: {e}")
+        inside_chat = bool(self.chat_interface)
+        logger.info(f"Executing ReasoningUnit inside_chat={inside_chat}")
+        try:
+            unit.execute(self)
+            logger.info(f"ReasoningUnit succeeded")
+        except Exception as e:
+            logger.error(f"ReasoningUnit failed: {e}")
+
+        last_assistant_output = self.get_last_assistant_output()
+
+        if last_assistant_output:
+            self._forget(last_assistant_output)

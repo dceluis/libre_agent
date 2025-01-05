@@ -7,7 +7,7 @@ class RecallRecognizer:
 
     def recall_memories(self, prompt, exclude_memory_ids=None):
         # fetch last 100 memories
-        memories = memory_graph.get_memories(limit=1000)
+        memories = memory_graph.get_memories(last=1000)
         # reverse memories
         memories = memories[::-1]
 
@@ -60,7 +60,7 @@ conversation.
 Examples:
 
 USER: "what is the name of the person I met last week?"
-ASSISTANT: Relevant memory ids: mem_1699985637892_0123, mem_1699985645678_0456
+ASSISTANT: Relevant memory ids: mem_0123_1699985637892, mem_0456_1699985645678
 
 USER: "what did I eat for breakfast yesterday?"
 ASSISTANT: Relevant memory ids:

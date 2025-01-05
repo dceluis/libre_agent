@@ -123,7 +123,7 @@ class MemoryGraph:
         logger.info(f"get_all_memories called. Returned {len(result)} memories.")
         return result
 
-    def get_memories(self, limit=None, memory_type=None, metadata=None, sort='timestamp', reverse=True):
+    def get_memories(self, first=None, last=None, memory_type=None, metadata=None, sort='timestamp', reverse=False):
         """
         Retrieve memories with optional filtering by memory_type and metadata, with sorting and limiting.
         """
@@ -134,10 +134,20 @@ class MemoryGraph:
         ]
         # Sort by specified field
         sorted_memories = sorted(memories, key=lambda x: x.get(sort, 0), reverse=reverse)
-        if limit is not None:
-            result = sorted_memories[:limit]
+
+        if first and last:
+            raise ValueError("Cannot specify both 'first' and 'last' parameters simultaneously")
+        elif first:
+            limit = first
+            result = sorted_memories[:first]
+        elif last:
+            result = sorted_memories[-last:]
+            limit = last
         else:
+            limit = None
             result = sorted_memories
+
+
         memory_ids = [mem['memory_id'] for mem in result]
         logger.info(
             f"get_memories called with memory_type='{memory_type}', metadata='{metadata}', sort='{sort}', limit={limit}. "
