@@ -6,30 +6,34 @@ import argparse
 import threading
 import math
 
+# import litellm
+# disable litellm logging
+# litellm.suppress_debug_info = True
+
 import colorama
 from colorama import Fore, Style
 colorama.init(autoreset=True)
+ITALIC = '\x1b[3m'
+ITALIC_RESET = '\x1b[23m'
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app_or_none, run_in_terminal
 
 from units.reasoning_unit import ReasoningUnit
-from utils import load_units, load_tools, generate_unit_id
+from utils import load_units, load_tools
 from working_memory import WorkingMemory
 from logger import logger
 import asyncio
 
 schedule_counter = 0
 
-def run_deep_reflection(working_memory=None):
-    unit_id = generate_unit_id()
-    reasoning = ReasoningUnit(unit_id)
-    reasoning.execute(working_memory, inside_chat=False, mode="core")
+def run_deep_reflection(working_memory):
+    reasoning = ReasoningUnit()
+    reasoning.execute(working_memory, mode="deep")
 
 def run_quick_reflection(working_memory):
-    unit_id = generate_unit_id()
-    reasoning = ReasoningUnit(unit_id)
-    reasoning.execute(working_memory, inside_chat=False, mode="personality")
+    reasoning = ReasoningUnit()
+    reasoning.execute(working_memory, mode="quick")
 
 def run_reflection(quick_schedule, deep_schedule, working_memory):
     global schedule_counter
@@ -53,6 +57,7 @@ class PromptToolkitChatInterface:
         self.working_memory.register_chat_interface(self)
         self.session = PromptSession()
         self.running = False
+        self.print_internals = False
         logger.info("prompt_toolkit chat interface initialized.")
 
     async def start(self):
@@ -73,22 +78,27 @@ class PromptToolkitChatInterface:
 
     def stop(self):
         self.running = False
-        logger.info("prompt_toolkit chat interface stopped.")
 
     def input_callback(self, _):
         pass
 
-    def output_callback(self, output):
+    def output_callback(self, memory):
+        output = memory["content"]
+        role = memory["metadata"].get("role")
+
         def do_print():
-            print(f"{Fore.GREEN}Assistant: {output}{Style.RESET_ALL}")
+            if role == "assistant":
+                print(f"{Fore.GREEN}Assistant: {output}{Style.RESET_ALL}")
+            elif self.print_internals:
+                print(f"{ITALIC}{Fore.BLUE}{output}{ITALIC_RESET}")
+
         app = get_app_or_none()
         if app:
             run_in_terminal(do_print)
         else:
             do_print()
 
-async def main(deep_schedule, quick_schedule):
-    logger.info("starting libre agent with prompt_toolkit ui")
+async def main(deep_schedule, quick_schedule, print_internals):
     load_units()
     load_tools()
 
@@ -102,6 +112,7 @@ async def main(deep_schedule, quick_schedule):
     scheduler_thread.start()
 
     chat_interface = PromptToolkitChatInterface(working_memory)
+    chat_interface.print_internals = print_internals
     try:
         await chat_interface.start()
     except Exception as e:
@@ -113,6 +124,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Libre Agent System (prompt_toolkit edition)")
     parser.add_argument('--deep-schedule', type=int, default=10, help='deep reflection schedule in minutes')
     parser.add_argument('--quick-schedule', type=int, default=5, help='quick reflection schedule in minutes')
+    parser.add_argument('--print-internals', action='store_true', help='print internal memories')
     args = parser.parse_args()
 
-    asyncio.run(main(args.deep_schedule, args.quick_schedule))
+    asyncio.run(main(args.deep_schedule, args.quick_schedule, args.print_internals))

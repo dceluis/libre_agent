@@ -1,15 +1,9 @@
 # utils.py
 
 import importlib
-import random
 import time
 from pathlib import Path
 from logger import logger
-
-def generate_unit_id():
-    timestamp = int(time.time()) % 10000  # Get the last 4 digits of the current timestamp
-    random_number = random.randint(0, 999)  # Generate a random number between 0 and 999
-    return f"{timestamp:04}{random_number:03}"  # Combine them to form a 7-digit UID
 
 def load_units():
     units_dir = Path(__file__).parent / 'units'
@@ -50,10 +44,11 @@ def format_memories(memories):
     """Format memories into a structured and readable string for inclusion in the prompt."""
     formatted = ""
     for entry in memories:
-        mid = entry.get('memory_id')
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(entry['timestamp']))
         content = entry['content']
-        unit_name = entry['metadata'].get('unit_name', 'N/A')
-        formatted += f"[{timestamp}] (ID: {mid}, Unit: {unit_name}) {content}\n"
+        memory_type = entry['memory_type']
+        metadata = entry['metadata']
+        metadata_str = ', '.join(f"{k}={v}" for k, v in metadata.items() if k != 'working_memory_id')
+        formatted += f"[{timestamp}] {memory_type} ({metadata_str}): {content}\n"
     return formatted.strip()
 

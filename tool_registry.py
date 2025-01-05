@@ -12,10 +12,10 @@ class ToolRegistry:
         })
 
     @classmethod
-    def get_tools(cls, role=None):
-        if role == 'core':
+    def get_tools(cls, mode=None):
+        if mode == 'deep':
             return cls.tools
-        elif role == 'unit':
+        elif mode == 'quick':
             return [tool for tool in cls.tools if tool['name'] != 'Core Memory Tool']
         else:
             return []

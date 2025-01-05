@@ -3,7 +3,6 @@ import time
 import asyncio
 from memory_graph import memory_graph
 from logger import logger
-from utils import generate_unit_id
 from recall_recognizer import RecallRecognizer
 from unit_registry import UnitRegistry
 
@@ -32,27 +31,22 @@ class WorkingMemory:
 
     def register_input_observer(self, observer_callback):
         self.input_observers.append(observer_callback)
-        logger.info(f"WorkingMemory {self.id} registered a new input observer.")
 
     def register_output_observer(self, observer_callback):
         self.output_observers.append(observer_callback)
-        logger.info(f"WorkingMemory {self.id} registered a new output observer.")
 
     async def process_notification_queue(self):
         """
         call this in your event loop to process any newly added interactions 
         without blocking. e.g., loop.create_task(wm.process_notification_queue())
         """
-        logger.info("starting notification queue processor")
         while True:
-            notice = await self.notification_queue.get()
-            role = notice["role"]
-            content = notice["content"]
+            memory = await self.notification_queue.get()
 
-            if role == 'user':
-                self.notify_input_observers(content)
+            if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
+                self.notify_input_observers(memory)
             else:
-                self.notify_output_observers(content)
+                self.notify_output_observers(memory)
 
             self.notification_queue.task_done()
 
@@ -85,16 +79,6 @@ class WorkingMemory:
             return instance
         return None
 
-    def _populate_recall(self, user_prompt):
-        exclude_ids = [m['memory_id'] for m in self.memories]
-        rr = RecallRecognizer()
-        recalled = rr.recall_memories(user_prompt, exclude_memory_ids=exclude_ids)
-        for memory in recalled:
-            memory['metadata']['recalled'] = True
-
-        self.memories.extend(recalled)
-        logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.id}")
-
     def add_memory(self, memory_type, content, parent_memory_ids=None, metadata=None):
         if parent_memory_ids is None:
             parent_memory_ids = []
@@ -110,13 +94,17 @@ class WorkingMemory:
             parent_memory_ids=parent_memory_ids
         )
 
-        self.memories.append({
+        memory = {
             'memory_id': memory_id,
             'memory_type': memory_type,
             'content': content,
             'metadata': metadata,
             'timestamp': time.time()
-        })
+        }
+
+        self.memories.append(memory)
+
+        self.notification_queue.put_nowait(memory)
 
         logger.info(f"Added memory to WorkingMemory {self.id}")
 
@@ -129,9 +117,6 @@ class WorkingMemory:
         metadata['role'] = role
 
         self.add_memory('external', content, parent_memory_ids=parent_memory_ids, metadata=metadata)
-
-        self.notification_queue.put_nowait({"role": role, "content": content})
-        logger.info(f"Added {role} interaction to the queue")
 
     def get_memories(self, limit=None, memory_type=None, metadata=None, sort='timestamp', reverse=True):
         mems = [
@@ -161,22 +146,29 @@ class WorkingMemory:
             return memories[0]['content']
         return None
 
-    def execute(self, user_input=None):
-        if user_input:
-            last_user_input = user_input
-        else:
-            last_user_input = self.get_last_user_input()
-            if last_user_input:
-                self._populate_recall(last_user_input)
+    def _populate_recall(self, user_prompt):
+        exclude_ids = [m['memory_id'] for m in self.memories]
+        rr = RecallRecognizer()
+        recalled = rr.recall_memories(user_prompt, exclude_memory_ids=exclude_ids)
+        for memory in recalled:
+            memory['metadata']['recalled'] = True
+
+        self.memories.extend(recalled)
+        logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.id}")
+
+    def execute(self):
+        last_user_input = self.get_last_user_input()
+
+        if last_user_input:
+            self._populate_recall(last_user_input)
 
         units = UnitRegistry.get_units()
 
         for unit_info in units:
-            unit_id = generate_unit_id()
-            unit_obj = unit_info["class"](unit_id)
+            unit_obj = unit_info["class"]()
             inside_chat = bool(self.chat_interface)
             logger.info(f"Executing unit {unit_info['name']} inside_chat={inside_chat}")
             try:
-                unit_obj.execute(self, inside_chat=inside_chat)
+                return unit_obj.execute(self)
             except Exception as e:
                 logger.error(f"Unit {unit_info['name']} failed: {e}")

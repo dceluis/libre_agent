@@ -23,14 +23,25 @@ class MemoryGraph:
     def __init__(self):
         if self._initialized:
             return
-        self.graph = nx.DiGraph()
-        self.data_dir = Path("user_data")
-        self.graph_file = self.data_dir / "memory_graph.pkl"
-        self.data_dir.mkdir(parents=True, exist_ok=True)
 
+        data_dir = Path("user_data")
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        self.graph_file = data_dir / "memory_graph.pkl"
+        self.graph = nx.DiGraph()
         self.load_graph()
 
         self._initialized = True
+
+    def set_graph_file_path(self, new_path: str):
+        with self._lock:
+            self.graph_file = Path(new_path)
+
+            data_dir = self.graph_file.parent
+            data_dir.mkdir(parents=True, exist_ok=True)
+
+            self.load_graph()
+            logger.info(f"Switched memory graph path to {self.graph_file}.")
 
     def load_graph(self):
         if self.graph_file.exists():
@@ -51,12 +62,14 @@ class MemoryGraph:
         random_number = random.randint(0, 9999)
         return f"mem_{timestamp}_{random_number:04}"
 
-    def add_memory(self, memory_type, content, metadata=None, parent_memory_ids=None):
+    def add_memory(self, memory_type, content, metadata=None, parent_memory_ids=None, timestamp=None):
         memory_id = self.generate_memory_id()
         if metadata is None:
             metadata = {}
         if parent_memory_ids is None:
             parent_memory_ids = []
+        if timestamp is None:
+            timestamp = time.time()
 
         # Add memory node with attributes
         self.graph.add_node(
@@ -64,7 +77,7 @@ class MemoryGraph:
             memory_type=memory_type,  # 'external', 'internal', or 'core'
             content=content,
             metadata=metadata,
-            timestamp=time.time()
+            timestamp=timestamp
         )
 
         role = metadata.get('role', 'N/A')

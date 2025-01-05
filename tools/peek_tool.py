@@ -17,8 +17,8 @@ class PeekTool:
     <description>Captures a screenshot of the current screen and analyzes it.</description>
     <parameters>
         <parameter>
-            <name>unit_id</name>
-            <description>The ID of the unit that is using the tool.</description>
+            <name>unit_name</name>
+            <description>The name of the unit that is using the tool.</description>
         </parameter>
     </parameters>
 </tool>
@@ -26,9 +26,9 @@ class PeekTool:
     def __init__(self, working_memory):
         self.working_memory = working_memory
 
-    def run(self, unit_id):
+    def run(self, unit_name, **kwargs):
         """Take a screenshot and analyze it using LiteLLM's completion function."""
-        screenshot_path = f"/tmp/screenshot_{unit_id}_{int(time.time())}.png"
+        screenshot_path = f"/tmp/screenshot_{unit_name}_{int(time.time())}.png"
         try:
             # Take the screenshot
             subprocess.run(['scrot', screenshot_path], check=True, capture_output=True)

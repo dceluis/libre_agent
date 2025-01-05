@@ -7,17 +7,22 @@ class CoreMemoryTool:
 <tool>
     <name>Core Memory Tool</name>
     <description>
-Use this tool to replace the core memory of the system.
+Use this tool to replace the system's core memory.
 The core memory is used to store important information that needs to be
 accessible across all units.
 
-Be comprehensive in your analysis and recommendations. Include relevant
+Activation guidelines:
+- Use this tool often to update the core memory with new information.
+
+Style guide:
+
+Be comprehensive in your analysis and recommendations. Include structured
 information, such as, but not limited to:
 
 - The system's role and purpose.
-- Observations and reflections on the system's performance.
 - Immediate and long-term goals for the system.
-- Immediate steps and an action plan for achieving the goals.
+- An action plan for achieving the goals.
+- Observations and reflections on the system's performance.
     </description>
     <parameters>
         <parameter>
@@ -34,7 +39,7 @@ information, such as, but not limited to:
     def __init__(self, working_memory):
         self.working_memory = working_memory
 
-    def run(self, unit_name, content):
+    def run(self, unit_name, content, **kwargs):
         memory_graph.set_core_memory(content=content, metadata={'unit_name': unit_name})
         return True
 

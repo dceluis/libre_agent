@@ -22,6 +22,9 @@ class RecallRecognizer:
 
         # call llm
         try:
+            logger.debug(f"[RecallRecognizer] system_prompt: {system_prompt}")
+            logger.debug(f"[RecallRecognizer] constructed_prompt: {constructed_prompt}")
+
             completion_response = completion(
                 model="gemini/gemini-1.5-flash-8b",
                 messages=[
@@ -29,6 +32,9 @@ class RecallRecognizer:
                     {"role": "user", "content": constructed_prompt}
                 ]
             )
+
+            logger.debug(f"[RecallRecognizer] completion_response: {completion_response}")
+
             reply = completion_response['choices'][0]['message']['content'].strip()
 
             # parse out memory ids
@@ -46,12 +52,16 @@ class RecallRecognizer:
         prompt = f"""
 You are a memory retrieval assistant.
 
+You are an expert in recalling memories from an extensive database, populating
+the system's working memory with relevant information that will advance the
+conversation.
+
 Examples:
 
-USER: "I need help with my finances"
+USER: "what is the name of the person I met last week?"
 ASSISTANT: Relevant memory ids: mem_1699985637892_0123, mem_1699985645678_0456
 
-USER: "tell me a joke"
+USER: "what did I eat for breakfast yesterday?"
 ASSISTANT: Relevant memory ids:
 """
         return prompt

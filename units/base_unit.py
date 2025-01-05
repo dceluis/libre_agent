@@ -13,8 +13,7 @@ class BaseUnit:
         """Return the class name of the unit."""
         return cls.__name__
 
-    def __init__(self, unit_id):
-        self.unit_id = unit_id
+    def __init__(self):
         self.unit_name = self.__class__.unit_name
 
     def execute(self, working_memory):

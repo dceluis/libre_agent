@@ -28,6 +28,10 @@
 !doc/
 !doc/**/*
 
+!benchmark/
+!benchmark/**/*
+benchmark/tmp/**/*
+
 # !pytest.ini
 # !tests/
 # !tests/*.py
