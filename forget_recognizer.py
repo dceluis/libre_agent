@@ -10,7 +10,7 @@ class ForgetRecognizer:
     ephemeral "forget" routine.
     """
 
-    def __init__(self, model="gemini/gemini-2.0-flash-exp"):
+    def __init__(self, model="gemini/gemini-1.5-flash-8b"):
         self.model = model
 
     def check_if_used(self, assistant_msg: str, memories: List[dict]) -> List[dict]:

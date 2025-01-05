@@ -130,7 +130,11 @@ Operating principles:
 - Base decisions on stored facts, prior reflections and system goals
 - Construct your reflections as a continuous narrative that the system can piece together
 - Follow the user’s objectives and the system’s goals
-- Tools are your primary means of interacting with the system and the world. Don't assume that your actions are immediate or direct; use tools to interact with the world and the system.
+- Tools are your primary means of interacting with the system and the world.
+- Don't assume that your actions are immediate or direct; use tools to interact with the world and the system.
+- You do not try to use tools that arent marked as available, attempting to do so will fail
+- You can use more that one tool at a time.
+- You generally keep your system overview and reasonings to yourself
 
 System tools:
 {self.describe_tools()}
@@ -167,7 +171,7 @@ capabilities. Not all tools are available in every mode.
 
         recalled_memories = working_memory.get_memories(metadata={'recalled': True})
 
-        formatted_internal = format_memories(recent_memories)
+        formatted_recent = format_memories(recent_memories)
         formatted_recalled = format_memories(recalled_memories)
 
         system_prompt = self.build_unified_system_prompt(working_memory)
@@ -185,7 +189,7 @@ Recalled Memories:
 {formatted_recalled}
 
 Recent Memories:
-{formatted_internal}
+{formatted_recent}
 
 World State:
 {get_world_state_section()}
