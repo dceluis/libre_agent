@@ -8,8 +8,6 @@ class RecallRecognizer:
     def recall_memories(self, prompt, exclude_memory_ids=None):
         # fetch last 100 memories
         memories = memory_graph.get_memories(last=1000)
-        # reverse memories
-        memories = memories[::-1]
 
         # exclude provided memory ids
         logger.debug(f"Excluded memories: {exclude_memory_ids}")
@@ -79,8 +77,9 @@ Memories:
 """
         for mem in memories:
             memory_id = mem['memory_id']
+            role = mem['metadata'].get('role', 'N/A')
             content = mem['content']
-            constructed_prompt += f"Memory ID: {memory_id}\nContent: {content}\n\n"
+            constructed_prompt += f"Memory ID: {memory_id}\nRole: {role}\nContent: {content}\n\n"
 
         constructed_prompt += """
 Return a comma-separated list of 0 or more memory ids that are relevant to the

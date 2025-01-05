@@ -41,6 +41,28 @@ def run_qa_scenario(eval: dict):
 
     return scenario
 
+def run_inspect_scenario(eval: dict):
+    question = eval.get("question")
+
+    wm = WorkingMemory()
+
+    wm.add_interaction("user", question, metadata={'unit_name': 'User'})
+    wm.execute()
+
+    # Get the recalled memories
+    recalled_memories = wm.get_memories(metadata={'recalled': True})
+
+    # Create a scenario string with the recalled memories
+    scenario = "Recalled Memories:\n"
+
+    if len(recalled_memories) > 0:
+        for memory in recalled_memories:
+            scenario += f"- {memory.get('content', 'No content')}\n"
+    else:
+        scenario += "<EMPTY LIST>"
+
+    return scenario
+
 def populate_memory_graph(data: dict, memory_graph_path: str):
     mg = memory_graph
     mg.set_graph_file_path(memory_graph_path)
@@ -84,6 +106,8 @@ def run_scenario(run_id: str, scenario_name: str, data: dict):
         eval_type = eval.get("type", "")
         if eval_type == "qa":
             scenario = run_qa_scenario(eval)
+        elif eval_type == "inspect":
+            scenario = run_inspect_scenario(eval)
         else:
             logger.warning(f"eval type '{eval_type}' unknown, running as Q&A scenario")
             scenario = run_qa_scenario(eval)
@@ -97,7 +121,7 @@ def run_scenario(run_id: str, scenario_name: str, data: dict):
         print("==============================================================")
         time.sleep(2)
 
-def run(run_id: str):
+def run(run_id: str, include_pattern: str):
     load_units()
     load_tools()
 
@@ -107,7 +131,7 @@ def run(run_id: str):
     yaml_paths = [
         os.path.join(current_dir, f)
         for f in os.listdir(current_dir)
-        if f.endswith('.yaml') or f.endswith('.yml')
+        if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or include_pattern in f)
     ]
 
     logger.debug(f"Found YAML files: {yaml_paths}")
@@ -123,9 +147,11 @@ def run(run_id: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
+    parser.add_argument('--include', type=str, help='Pattern to filter YAML files to run', default=None)
     args = parser.parse_args()
 
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    include_pattern = args.include
 
     os.makedirs(base_runs_dir, exist_ok=True)
 
@@ -136,7 +162,7 @@ def main():
     logger.info(f"Starting run {run_id}. All artifacts will be stored in {run_dir}")
 
     try:
-        run(run_id)
+        run(run_id, include_pattern)
         logger.info(f"Run {run_id} completed successfully.")
     except Exception as e:
         logger.error(f"Run {run_id} failed with error: {e}\n{traceback.format_exc()}")
