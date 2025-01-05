@@ -22,6 +22,25 @@ from utils import load_units, load_tools
 
 base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
 
+def run_qa_scenario(eval: dict):
+    question = eval.get("question")
+
+    wm = WorkingMemory()
+
+    wm.add_interaction("user", question, metadata={'unit_name': 'User'})
+    wm.execute()
+    answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, last=1)
+
+    answer = "<NO ANSWER>"
+    if answer_memory:
+        answer_content = answer_memory[0]['content']
+        if answer_content:
+            answer = answer_content
+
+    scenario = "\n".join([f"Question: {question}", f"Answer: {answer}"])
+
+    return scenario
+
 def populate_memory_graph(data: dict, memory_graph_path: str):
     mg = memory_graph
     mg.set_graph_file_path(memory_graph_path)
@@ -52,6 +71,9 @@ def run_scenario(run_id: str, scenario_name: str, data: dict):
     evals = data.get("evaluations", [])
 
     for idx, eval in enumerate(evals):
+        references = eval.get("references", [])
+        if isinstance(references, str):
+            references = [references]
         # Create a temporary graph file within the run directory
         temp_graph_filename = f'memory_graph_{scenario_name}_{idx}.pkl'
         temp_graph_path = os.path.join(run_dir, temp_graph_filename)
@@ -59,30 +81,19 @@ def run_scenario(run_id: str, scenario_name: str, data: dict):
         # Populate the memory graph for each YAML file
         populate_memory_graph(data, temp_graph_path)
 
-        question = eval.get("question")
-        references = eval.get("answer", [])
-        if isinstance(references, str):
-            references = [references]
-
-        wm = WorkingMemory()
-        wm.add_interaction("user", question, metadata={'unit_name': 'User'})
-        wm.execute()
-
-        answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, last=1)
-
-        if answer_memory:
-            answer = answer_memory[0]['content']
+        eval_type = eval.get("type", "")
+        if eval_type == "qa":
+            scenario = run_qa_scenario(eval)
         else:
-            answer = ""
+            logger.warning(f"eval type '{eval_type}' unknown, running as Q&A scenario")
+            scenario = run_qa_scenario(eval)
 
         evaluator = Evaluator()
-
-        result = evaluator.evaluate_answer(question=question, answer=answer, references=references)
+        evaluation = evaluator.evaluate_answer(scenario=scenario, references=references)
 
         print("==============================================================")
-        print(f"Question: {question}")
-        print(f"Answer: {answer}")
-        print(f"Result: {result}")
+        print(scenario)
+        print(f"Evaluation: {evaluation}")
         print("==============================================================")
         time.sleep(2)
 

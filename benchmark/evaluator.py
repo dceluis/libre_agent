@@ -12,14 +12,12 @@ class Evaluator:
     def __init__(self, model="gemini/gemini-1.5-flash"):
         self.model = model
 
-    def evaluate_answer(self, question: str, answer: str, references: list | None = None) -> str:
+    def evaluate_answer(self, scenario: str, references: list | None = None) -> str:
         if references is None:
             references = []
-        if not answer:
-            answer = "<NO ANSWER>"
 
         system_prompt = """
-You are an expert evaluator with the empathy of a wise teacher. You're analyzing whether an answer:
+You are an expert evaluator with the empathy of a wise teacher. You're analyzing whether an scenario:
 
 1) Is correct, or has correct references
 2) Is relevant, addressing the query
@@ -29,11 +27,8 @@ Avoid purely surface textual comparisons; weigh the semantic alignment to the re
 """
 
         user_prompt = f"""
-Question:
-{question}
-
-Answer:
-{answer}
+Scenario:
+{scenario}
 
 Evaluate correctness, completeness, and recall fidelity, using the following
 references as metrics (these are ground truths or relevant info):
@@ -57,10 +52,8 @@ Return "Pass" or "Fail" (don't prefix anything) followed by an optional comment 
 
             content = resp["choices"][0]["message"]["content"].strip()
 
-            result = content.split()[0]
-
-            if re.match(r'^(pass|fail)', result, re.IGNORECASE):
-                return result
+            if re.match(r'^(pass|fail)', content, re.IGNORECASE):
+                return content
             else:
                 return f"Error - Bad format ({content})"
 

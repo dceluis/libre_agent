@@ -1,10 +1,5 @@
-from litellm import completion
-import traceback
-import time
-from working_memory import WorkingMemory
 from logger import logger
 from tool_registry import ToolRegistry
-from utils import get_world_state_section, format_memories
 
 class ChatTool:
     name = 'Chat Tool'
@@ -27,6 +22,7 @@ Style guide:
 - Transform internal dialogues and reflections into human-like conversations.
 - Be concise and clear in your communication.
 - Emulate human-like conversation patterns.
+
     </description>
     <parameters>
         <parameter>
@@ -48,10 +44,6 @@ Style guide:
         self.working_memory = working_memory
 
     def run(self, unit_name, content=None, **kwargs):
-        # if self.working_memory is None:
-            # self.working_memory = WorkingMemory()
-            # logger.warning("Working memory was not provided. Created a new instance.")
-
         if content:
             logger.info(f"Content provided: {content}")
             self.working_memory.add_interaction("assistant", content, metadata={'unit_name': unit_name})
