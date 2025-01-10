@@ -74,14 +74,6 @@ class ReasoningUnit():
             return self.quick_reflection(working_memory)
 
     def build_unified_system_prompt(self, working_memory):
-        inside_chat = working_memory.chat_interface is not None
-
-        context_note = (
-            "You are running INSIDE a chat interface."
-            if inside_chat
-            else "You are running OUTSIDE a chat interface."
-        )
-
         return f"""
 You are a specialized reasoning unit on a long-term memory and reasoning system.
 Your internal role (unit id) is {self.unit_name}.
@@ -111,8 +103,6 @@ in the system and persist across sessions.
 This core memory is a set of high-level goals and objectives that you should
 update and maintain as the system's objectives evolve. This is your primary
 responsibility.
-
-{context_note}
 
 You have the following key capabilities:
 - Generate internal reflections

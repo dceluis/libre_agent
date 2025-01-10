@@ -1,0 +1,25 @@
+<!-- wui/templates/chat.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LibreAgent Chat</title>
+    <link href="/static/styles.css" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>LibreAgent Chat</h1>
+        <div id="chat-box" class="chat-box">
+            {% for message in messages %}
+                {% include 'message.html' %}
+            {% endfor %}
+        </div>
+        <form hx-post="/send_message" hx-target="#chat-box" hx-swap="beforeend" class="chat-form">
+            <input type="text" name="message" placeholder="Type your message here..." required autocomplete="off">
+            <button type="submit">Send</button>
+        </form>
+    </div>
+</body>
+</html>

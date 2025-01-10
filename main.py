@@ -55,7 +55,9 @@ def start_scheduler():
 class PromptToolkitChatInterface:
     def __init__(self, working_memory):
         self.working_memory = working_memory
-        self.working_memory.register_chat_interface(self)
+
+        self.working_memory.register_observer(self.memory_callback)
+
         self.session = PromptSession()
         self.running = False
         self.print_internals = False

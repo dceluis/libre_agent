@@ -28,6 +28,9 @@
 !doc/
 !doc/**/*.md
 
+!wui/
+!wui/**/*
+
 !benchmark/
 !benchmark/*.py
 !benchmark/*.yml
@@ -37,3 +40,5 @@ benchmark/tmp/**/*
 # !pytest.ini
 # !tests/
 # !tests/*.py
+
+__pycache__/

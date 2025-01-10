@@ -1,0 +1,6 @@
+<!-- wui/templates/message.html -->
+
+<div class="message {{ 'user-message' if message.role == 'user' else 'assistant-message' }}">
+    <span class="message-role">{{ 'You' if message.role == 'user' else 'Assistant' }}:</span>
+    <span class="message-content">{{ message.content }}</span>
+</div>

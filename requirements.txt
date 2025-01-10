@@ -4,8 +4,10 @@ networkx==3.0
 colorama==0.4.6       # If using colorama
 pytest==7.2.0
 pytest-mock==3.10.0
+litellm==1.55.9
 
 fastapi
 uvicorn
-litellm==1.55.9
+python-multipart
+
 prompt_toolkit

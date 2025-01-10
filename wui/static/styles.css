@@ -1,0 +1,132 @@
+/*
+  1. Use a more-intuitive box-sizing model.
+*/
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+/*
+  2. Remove default margin
+*/
+* {
+  margin: 0;
+}
+/*
+  Typographic tweaks!
+  3. Add accessible line-height
+  4. Improve text rendering
+*/
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+/*
+  5. Improve media defaults
+*/
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+/*
+  6. Remove built-in form typography styles
+*/
+input, button, textarea, select {
+  font: inherit;
+}
+/*
+  7. Avoid text overflows
+*/
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+/*
+  8. Create a root stacking context
+*/
+#root, #__next {
+  isolation: isolate;
+}
+
+/* wui/static/styles.css */
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+}
+
+.chat-container {
+    width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 95vh;
+    margin: 2.5vh auto;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: #075E54;
+}
+
+.chat-box {
+    flex: 1;
+    overflow-y: scroll;
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #e5ddd5;
+    border-radius: 5px;
+}
+
+.message {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 10px;
+    max-width: 80%;
+    clear: both;
+}
+
+.user-message {
+    background-color: #dcf8c6;
+    float: right;
+    text-align: right;
+}
+
+.assistant-message {
+    background-color: #ffffff;
+    float: left;
+    text-align: left;
+}
+
+.message-role {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.chat-form {
+    display: flex;
+}
+
+.chat-form input[type="text"] {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px 0 0 5px;
+    outline: none;
+}
+
+.chat-form button {
+    padding: 10px 20px;
+    border: none;
+    background-color: #075E54;
+    color: #ffffff;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+
+.chat-form button:hover {
+    background-color: #128C7E;
+}

@@ -17,15 +17,9 @@ class WorkingMemory:
         # let's store interactions in a queue so we don't fire the async loop directly
         self.notification_queue = asyncio.Queue()
 
-        self.chat_interface = None
         self.memories = []
 
         logger.info(f"WorkingMemory initialized with ID: {self.id}")
-
-    def register_chat_interface(self, chat_interface):
-        self.chat_interface = chat_interface
-        self.register_observer(chat_interface.memory_callback)
-        logger.info(f"WorkingMemory {self.id} registered ChatInterface.")
 
     def register_observer(self, observer_callback):
         self.observers.append(observer_callback)
@@ -207,8 +201,7 @@ class WorkingMemory:
 
         unit = ReasoningUnit()
 
-        inside_chat = bool(self.chat_interface)
-        logger.info(f"Executing ReasoningUnit inside_chat={inside_chat}")
+        logger.info(f"Executing ReasoningUnit")
         try:
             unit.execute(self)
             logger.info(f"ReasoningUnit succeeded")
