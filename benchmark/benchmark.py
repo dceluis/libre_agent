@@ -27,7 +27,7 @@ def run_qa_scenario(eval: dict):
 
     wm = WorkingMemory()
 
-    wm.add_interaction("user", question, metadata={'unit_name': 'User'})
+    wm.add_interaction("user", question)
     wm.execute()
     answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, last=1)
 
@@ -46,7 +46,7 @@ def run_inspect_scenario(eval: dict):
 
     wm = WorkingMemory()
 
-    wm.add_interaction("user", question, metadata={'unit_name': 'User'})
+    wm.add_interaction("user", question)
     wm.execute()
 
     # Get the recalled memories
@@ -68,7 +68,6 @@ def populate_memory_graph(data: dict, memory_graph_path: str):
     mg.set_graph_file_path(memory_graph_path)
 
     messages = data.get("messages", [])
-    wm = WorkingMemory()
 
     for msg in messages:
         role = msg.get("role", "user")
@@ -79,7 +78,8 @@ def populate_memory_graph(data: dict, memory_graph_path: str):
             "role": role,
             "timestamp": timestamp
         }
-        wm.add_memory(
+
+        memory_graph.add_memory(
             memory_type="external",
             content=content,
             metadata=metadata

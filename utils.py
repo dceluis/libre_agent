@@ -28,14 +28,8 @@ def load_tools():
             logger.error(f"Error loading tool module {module_name}: {e}")
 
 def get_world_state_section():
-    """
-    Generates a "World State" section to be appended to system prompts.
-    Currently includes only the current time formatted as '%Y-%m-%d %H:%M:%S',
-    but can be extended to include more data.
-    """
     current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     world_state = f"""
-### World State
 - **Current Time**: {current_time}
 """
     return world_state
@@ -48,7 +42,7 @@ def format_memories(memories):
         content = entry['content']
         memory_type = entry['memory_type']
         metadata = entry['metadata']
-        metadata_str = ', '.join(f"{k}={v}" for k, v in metadata.items() if k != 'working_memory_id')
+        metadata_str = ', '.join(f"{k}={v}" for k, v in metadata.items())
         formatted += f"[{timestamp}] {memory_type} ({metadata_str}): {content}\n"
     return formatted.strip()
 

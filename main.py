@@ -21,6 +21,7 @@ from prompt_toolkit.application import get_app_or_none, run_in_terminal
 
 from units.reasoning_unit import ReasoningUnit
 from utils import load_units, load_tools
+from memory_graph import memory_graph
 from working_memory import WorkingMemory
 from logger import logger
 import asyncio
@@ -70,7 +71,8 @@ class PromptToolkitChatInterface:
                     print("shutting down...")
                     self.stop()
                     break
-                self.working_memory.append_input(user_input)
+
+                self.working_memory.add_interaction("user", user_input)
             except (EOFError, KeyboardInterrupt):
                 print("\nshutting down...")
                 self.stop()
@@ -79,28 +81,36 @@ class PromptToolkitChatInterface:
     def stop(self):
         self.running = False
 
-    def input_callback(self, _):
-        pass
+    def memory_callback(self, memory):
+        app = get_app_or_none()
 
-    def output_callback(self, memory):
+        memory_type = memory['memory_type']
         output = memory["content"]
         role = memory["metadata"].get("role")
 
-        def do_print():
-            if role == "assistant":
-                print(f"{Fore.GREEN}Assistant: {output}{Style.RESET_ALL}")
-            elif self.print_internals:
-                print(f"{ITALIC}{Fore.BLUE}{output}{ITALIC_RESET}")
+        def do_print(output, color=Fore.GREEN, style=Style.RESET_ALL, italic=False):
+            prefix = ITALIC if italic else ""
+            suffix = ITALIC_RESET if italic else ""
+            print(f"{prefix}{color}{output}{suffix}{style}")
 
-        app = get_app_or_none()
-        if app:
-            run_in_terminal(do_print)
+        if memory_type == 'external' and role == "assistant":
+            print_func = lambda: do_print(f"Assistant: {output}")
+        elif memory_type == 'internal' and self.print_internals:
+            print_func = lambda: do_print(output, color=Fore.CYAN, italic=True)
         else:
-            do_print()
+            return
 
-async def main(deep_schedule, quick_schedule, print_internals):
+        if app:
+            run_in_terminal(print_func)
+        else:
+            print_func()
+
+async def main(deep_schedule, quick_schedule, print_internals, memory_graph_file):
     load_units()
     load_tools()
+
+    if memory_graph_file:
+        memory_graph.set_graph_file_path(memory_graph_file)
 
     working_memory = WorkingMemory()
     loop = asyncio.get_event_loop()
@@ -125,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument('--deep-schedule', type=int, default=10, help='deep reflection schedule in minutes')
     parser.add_argument('--quick-schedule', type=int, default=5, help='quick reflection schedule in minutes')
     parser.add_argument('--print-internals', action='store_true', help='print internal memories')
+    parser.add_argument('--memory-graph-file', type=str, default=None, help='path to custom memory graph file')
     args = parser.parse_args()
 
-    asyncio.run(main(args.deep_schedule, args.quick_schedule, args.print_internals))
+    asyncio.run(main(args.deep_schedule, args.quick_schedule, args.print_internals, args.memory_graph_file))

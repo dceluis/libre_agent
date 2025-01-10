@@ -16,7 +16,8 @@ class ToolRegistry:
         if mode == 'deep':
             return cls.tools
         elif mode == 'quick':
-            return [tool for tool in cls.tools if tool['name'] != 'Core Memory Tool']
+            # return [tool for tool in cls.tools if tool['name'] != 'Memory Tool']
+            return cls.tools
         else:
             return []
 

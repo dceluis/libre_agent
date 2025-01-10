@@ -71,20 +71,22 @@ class MemoryGraph:
         if timestamp is None:
             timestamp = time.time()
 
+        if metadata.get('role') is None:
+            metadata['role'] = 'short_term'
+
         # Add memory node with attributes
         self.graph.add_node(
             memory_id,
-            memory_type=memory_type,  # 'external', 'internal', or 'core'
+            memory_type=memory_type,  # 'external', 'internal'
             content=content,
             metadata=metadata,
             timestamp=timestamp
         )
 
-        role = metadata.get('role', 'N/A')
+        role = metadata.get('role')
         unit_name = metadata.get('unit_name', 'N/A')
-        working_memory_id = metadata.get('working_memory_id', 'N/A')
 
-        logger.info(f"Added memory {memory_id}: Type={memory_type}, Role={role}, Unit={unit_name}, WorkingMemoryID={working_memory_id}")
+        logger.info(f"Added memory {memory_id}: Type={memory_type}, Role={role}, Unit={unit_name}")
 
         # Add edges from parent memories to this memory
         for parent_id in parent_memory_ids:
@@ -95,28 +97,14 @@ class MemoryGraph:
 
         return memory_id
 
-    def set_core_memory(self, content, metadata=None):
-        """Set or update the core memory node."""
-        if metadata is None:
-            metadata = {}
-        self.graph.add_node(
-            'core_memory',
-            memory_type='core',
-            content=content,
-            metadata=metadata,
-            timestamp=time.time()
-        )
-        self.save_graph()
-        logger.info("Core memory has been set/updated.")
-
-    def get_core_memory(self):
-        """Retrieve the core memory node."""
-        core_memory = self.graph.nodes.get('core_memory', None)
-        if core_memory:
-            logger.info("Retrieved core memory.")
-        else:
-            logger.info("No core memory found.")
-        return core_memory
+    # def update_memory(self, memory_id, **kwargs):
+    #     memory = self.graph.nodes[memory_id]
+    #
+    #     for key, value in kwargs.items():
+    #         memory[key] = value
+    #
+    #     logger.info(f"Updated memory {memory_id} with attributes: {kwargs}")
+    #     self.save_graph()
 
     def get_all_memories(self):
         result = [ {'memory_id': node, **data} for node, data in self.graph.nodes(data=True) ]

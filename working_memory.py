@@ -12,9 +12,7 @@ class WorkingMemory:
         self.id = str(uuid.uuid4())
         self.created_at = time.time()
 
-        # keep these, but we're not calling them inside add_interaction
-        self.input_observers = [self.execute]
-        self.output_observers = []
+        self.observers = [self.reflex, self.persist]
 
         # let's store interactions in a queue so we don't fire the async loop directly
         self.notification_queue = asyncio.Queue()
@@ -26,15 +24,32 @@ class WorkingMemory:
 
     def register_chat_interface(self, chat_interface):
         self.chat_interface = chat_interface
-        self.register_input_observer(chat_interface.input_callback)
-        self.register_output_observer(chat_interface.output_callback)
+        self.register_observer(chat_interface.memory_callback)
         logger.info(f"WorkingMemory {self.id} registered ChatInterface.")
 
-    def register_input_observer(self, observer_callback):
-        self.input_observers.append(observer_callback)
+    def register_observer(self, observer_callback):
+        self.observers.append(observer_callback)
 
-    def register_output_observer(self, observer_callback):
-        self.output_observers.append(observer_callback)
+    def reflex(self, memory):
+        if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
+            self.execute()
+
+    def persist(self, memory):
+        metadata = memory.get('metadata', {})
+
+        def _do_persist():
+            memory_id = memory_graph.add_memory(
+                memory.get('memory_type'),
+                memory.get('content'),
+                metadata=metadata,
+                parent_memory_ids=memory.get('parent_memory_ids')
+            )
+            memory['memory_id'] = memory_id
+
+        if memory['memory_type'] == 'external':
+            _do_persist()
+        elif memory['memory_type'] == 'internal' and metadata['role'] != 'working_memory':
+            _do_persist()
 
     async def process_notification_queue(self):
         """
@@ -44,41 +59,16 @@ class WorkingMemory:
         while True:
             memory = await self.notification_queue.get()
 
-            if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
-                self.notify_input_observers(memory)
-            else:
-                self.notify_output_observers(memory)
+            self.notify_observers(memory)
 
             self.notification_queue.task_done()
 
-    def notify_input_observers(self, user_input):
-        for callback in self.input_observers:
+    def notify_observers(self, memory):
+        for callback in self.observers:
             try:
-                callback(user_input)
+                callback(memory)
             except Exception as e:
-                logger.error(f"Error notifying input observer: {e}")
-
-    def notify_output_observers(self, output):
-        logger.debug(f"notify_output_observers called with output: {output}")
-        for callback in self.output_observers:
-            try:
-                callback(output)
-            except Exception as e:
-                logger.error(f"Error notifying output observer: {e}")
-
-    def append_input(self, user_input):
-        self.add_interaction("user", user_input, metadata={'unit_name': 'User'})
-
-    @classmethod
-    def find(cls, working_memory_id):
-        memories = memory_graph.get_memories(metadata={'working_memory_id': working_memory_id})
-        if memories:
-            instance = cls()
-            instance.id = working_memory_id
-            instance.memories = memories
-            logger.info(f"Loaded WorkingMemory with ID: {working_memory_id} with {len(memories)} memories")
-            return instance
-        return None
+                logger.error(f"Error notifying observer: {e}")
 
     def add_memory(self, memory_type, content, parent_memory_ids=None, metadata=None):
         if parent_memory_ids is None:
@@ -86,14 +76,26 @@ class WorkingMemory:
         if metadata is None:
             metadata = {}
 
-        metadata['working_memory_id'] = self.id
+        if metadata.get('role') is None:
+            metadata['role'] = 'working_memory'
 
-        memory_id = memory_graph.add_memory(
-            memory_type=memory_type,
-            content=content,
-            metadata=metadata,
-            parent_memory_ids=parent_memory_ids
-        )
+        # UPDATE: 01/08/2025
+        # we are not adding the memories to the memory graph by default
+        # this is because we made the memory tool be the main driver of
+        # memorization. this puts the responsibility of adding memories on the
+        # llm.
+        # memory_id = memory_graph.add_memory(
+        #     memory_type=memory_type,
+        #     content=content,
+        #     metadata=metadata,
+        #     parent_memory_ids=parent_memory_ids
+        # )
+
+        # this is a quick fix after commenting out the lines above. we dont even
+        # need memory ids for the memories of a working_memory, since these are
+        # now considered ephemeral trains of thought that are supposed to be
+        # forgotten
+        memory_id = memory_graph.generate_memory_id()
 
         memory = {
             'memory_id': memory_id,
@@ -116,6 +118,9 @@ class WorkingMemory:
             metadata = {}
 
         metadata['role'] = role
+
+        if metadata.get('unit_name') is None:
+            metadata['unit_name'] = role.capitalize()
 
         self.add_memory('external', content, parent_memory_ids=parent_memory_ids, metadata=metadata)
 
@@ -149,7 +154,7 @@ class WorkingMemory:
 
     def get_last_user_input(self):
         memories = self.get_memories(
-            metadata={'working_memory_id': self.id, 'role': 'user'},
+            metadata={'role': 'user'},
             last=1,
             memory_type='external',
         )
@@ -159,7 +164,7 @@ class WorkingMemory:
 
     def get_last_assistant_output(self):
         memories = self.get_memories(
-            metadata={'working_memory_id': self.id, 'role': 'assistant'},
+            metadata={'role': 'assistant'},
             last=1,
             memory_type='external',
         )

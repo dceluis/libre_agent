@@ -33,10 +33,11 @@ class ReasoningUnit():
                 with open('personality.txt', 'r') as f:
                     traits = f.read().strip()
                 memory_graph.add_memory(
-                    memory_type='personality',
+                    memory_type='internal',
                     content=traits,
                     metadata={
-                        'unit_name': self.unit_name
+                        'unit_name': self.unit_name,
+                        'role': 'personality'
                     },
                     parent_memory_ids=[]
                 )
@@ -45,8 +46,8 @@ class ReasoningUnit():
             else:
                 # Check if there's a stored personality in memory
                 existing = memory_graph.get_memories(
-                    memory_type='personality',
-                    metadata={'unit_name': self.unit_name},
+                    memory_type='internal',
+                    metadata={'unit_name': self.unit_name, 'role': 'personality'},
                     last=1
                 )
                 if existing:
@@ -123,7 +124,8 @@ Context is provided in special blocks.
 You may see:
  - System goals
  - Personality traits
- - Recent and old memory highlights
+ - Recent and old memory highlights. 'Persisted' memories are saved in long-term
+   storage and will persist across sessions.
  - World State
 
 Operating principles:
@@ -138,11 +140,6 @@ Operating principles:
 
 System tools:
 {self.describe_tools()}
-
-Note:
-You periodically switch between two modes: quick and deep reflections. Each mode
-has a different purpose and context, as well as different tools and
-capabilities. Not all tools are available in every mode.
 """
 
     def get_last_reflection(self):
@@ -160,10 +157,6 @@ capabilities. Not all tools are available in every mode.
             logger.error(f"No internal WorkingMemory for ReasoningUnit")
             return
 
-        # Retrieve system goals from core memory
-        core_mem = memory_graph.get_core_memory()
-        system_goals = core_mem.get('content', 'No system goals defined.') if core_mem else "No system goals defined."
-
         # Gather recent memories for emotional continuity
         recent_memories = working_memory.get_memories(last=10)
         # Exclude recalled memories
@@ -179,11 +172,11 @@ capabilities. Not all tools are available in every mode.
         assistant_prompt = f"""
 [Context]
 
+Environment:
+{get_world_state_section()}
+
 Personality Traits:
 {self.personality_traits}
-
-Core Memory:
-{system_goals}
 
 Recalled Memories:
 {formatted_recalled}
@@ -191,18 +184,13 @@ Recalled Memories:
 Recent Memories:
 {formatted_recent}
 
-World State:
-{get_world_state_section()}
-
 You are currently operating in quick mode.
 """
 
         instruction = f"""
-First, observe the latest state of the world and the results of your actions, including new interactions and memories.
+First, observe the latest state of the world and the results of your actions, including recent interactions and memories.
 
-Then, produce a new reflection that continues the last reflection.
-
-Write the reflection in first-person.
+Then, reflect on these to decide your next action(s). Write this reflection in first-person.
 
 Finally, you may use one or more tools through the syntax:
 
@@ -241,16 +229,6 @@ from the following list of available tools:
 
             reflection_text = completion_response['choices'][0]['message']['content'].strip()
 
-            # Save reflection as an internal memory
-            working_memory.add_memory(
-                "internal",
-                reflection_text,
-                metadata={
-                    'unit_name': self.unit_name,
-                    'mode': 'quick'
-                }
-            )
-
             # Check for optional tool usage
             self.maybe_invoke_tool('quick', reflection_text, working_memory)
 
@@ -265,42 +243,37 @@ from the following list of available tools:
             return
 
         try:
-            core_mem = memory_graph.get_core_memory()
-            system_goals = core_mem.get('content', 'No system goals defined.') if core_mem else "No system goals defined."
-
             # Get some recent external memories
             recent_memories = memory_graph.get_memories(last=20)
+            recalled_memories = working_memory.get_memories(metadata={'recalled': True})
 
-            if not recent_memories:
-                logger.debug("No recent memories found for deeper reflection.")
-                return
+            formatted_recent = format_memories(recent_memories)
+            formatted_recalled = format_memories(recalled_memories)
 
             system_prompt = self.build_unified_system_prompt(working_memory)
 
             assistant_prompt = f"""
 [Context]
 
+Environment:
+{get_world_state_section()}
+
 Personality Traits:
 {self.personality_traits}
 
-Core Memory:
-{system_goals}
+Recalled Memories:
+{formatted_recalled}
 
 Recent Memories:
-{format_memories(recent_memories)}
-
-World State:
-{get_world_state_section()}
+{formatted_recent}
 
 You are currently operating in deep mode.
 """
 
             instruction = f"""
-First, observe the latest state of the world and the results of your actions, including new interactions and memories.
+First, observe the latest state of the world and the results of your actions, including recent interactions and memories.
 
-Then, produce a new reflection that continues the last reflection.
-
-Write the reflection in first-person.
+Then, reflect on these to decide your next action(s). Write this reflection in first-person.
 
 Finally, you may use one or more tools through the syntax:
 
@@ -337,15 +310,6 @@ from the following list of available tools:
 
             analysis = completion_response['choices'][0]['message']['content'].strip()
 
-            working_memory.add_memory(
-                "internal",
-                analysis,
-                metadata={
-                    'unit_name': self.unit_name,
-                    'mode': 'deep'
-                }
-            )
-
             # Check for optional tool usage
             self.maybe_invoke_tool('deep', analysis, working_memory)
 
@@ -372,7 +336,7 @@ from the following list of available tools:
             reflection_text,
             re.DOTALL
         )
-        if tools_match:
+        if tools_match and working_memory is not None:
             for tool_name, tool_params_block in tools_match:
                 tool = next((t for t in ToolRegistry.get_tools(mode) if t['name'] == tool_name), None)
                 if tool:
@@ -390,35 +354,22 @@ from the following list of available tools:
                         tool_instance = tool['class'](working_memory)
 
                         logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
+
                         if params_dict:
                             result = tool_instance.run(**params_dict)
                         else:
                             result = tool_instance.run()
 
-                        # if the tool returns a string result, store it in memory
-                        if isinstance(result, str):
-                            if working_memory is not None:
-                                working_memory.add_memory(
-                                    "internal",
-                                    f"Result from {tool_name}: {result}",
-                                    metadata={'unit_name': self.unit_name}
-                                )
-                            logger.info(f"Tool '{tool_name}' executed and result stored in memory.")
-                        else:
-                            if working_memory is not None:
-                                working_memory.add_memory(
-                                    "internal",
-                                    f"Tool '{tool_name}' returned {'success' if result else 'failure'}.",
-                                    metadata={'unit_name': self.unit_name}
-                                )
-                            logger.info(f"Tool '{tool_name}' returned {'success' if result else 'failure'}.")
+                        result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}."
+
+                        logger.info(result_msg)
                     except Exception as e:
-                        logger.error(f"Failed to run tool '{tool_name}': {e}")
+                        result_msg = f"Failed to run tool '{tool_name}': {e}"
+
+                        logger.error(result_msg)
                 else:
-                    if working_memory is not None:
-                        working_memory.add_memory(
-                            "internal",
-                            f"Tool '{tool_name}' not available.",
-                            metadata={'unit_name': self.unit_name}
-                        )
-                    logger.warning(f"Tool '{tool_name}' not found in registry.")
+                    result_msg = f"Tool '{tool_name}' not available.",
+
+                    logger.warning(result_msg)
+
+                working_memory.add_memory( "internal", result_msg, metadata={'unit_name': self.unit_name})
