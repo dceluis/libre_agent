@@ -2,24 +2,48 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <title>LibreAgent Chat</title>
     <link href="/static/styles.css" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="chat-container">
-        <h1>LibreAgent Chat</h1>
-        <div id="chat-box" class="chat-box">
-            {% for message in messages %}
-                {% include 'message.html' %}
-            {% endfor %}
-        </div>
-        <form hx-post="/send_message" hx-target="#chat-box" hx-swap="beforeend" class="chat-form">
-            <input type="text" name="message" placeholder="Type your message here..." required autocomplete="off">
-            <button type="submit">Send</button>
-        </form>
+      <h1>LibreAgent Chat</h1>
+      <div id="chat-box" class="chat-box">
+        {% for message in messages %}
+        {% include 'message.html' %}
+        {% endfor %}
+      </div>
+      <form hx-post="/send_message" hx-target="#chat-box" hx-swap="beforeend" class="chat-form">
+        <input type="text" name="message" placeholder="Type your message here..." required autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
     </div>
+
+    <!-- Auto-scroll Script -->
+    <script>
+    // Function to scroll the chat box to the bottom
+    function scrollToBottom() {
+      const chatBox = document.getElementById('chat-box');
+
+      chatBox.scrollTo({
+        top: chatBox.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+
+    // Scroll to bottom on initial load
+    window.onload = scrollToBottom;
+
+    // Listen for HTMX afterSwap event to scroll when new content is added
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+      if (event.target.id === 'chat-box') {
+        scrollToBottom();
+      }
+    });
+
+    </script>
 </body>
 </html>
