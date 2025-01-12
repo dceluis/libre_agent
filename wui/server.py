@@ -2,10 +2,11 @@ import uvicorn
 import os
 import sys
 import argparse
+import time
 from typing import List
 
 from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -51,21 +52,21 @@ def get_chat_history():
         {
             "role": mem['metadata'].get('role', 'user'),
             "content": mem['content'],
-            "timestamp": mem['timestamp']
+            "timestamp": time.strftime('%H:%M:%S', time.localtime(mem['timestamp']))
         }
         for mem in memories
     ]
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
-    logger.info("chat page accessed.")
     chat_history = get_chat_history()
     # you might add hx-websockets extension scripts here in the template
     return templates.TemplateResponse("chat.html", {"request": request, "messages": chat_history})
 
 @app.post("/send_message", response_class=HTMLResponse)
 async def send_message(request: Request, message: str = Form(...)):
-    user_snippet = render_message_snippet(role="user", content=message)
+    timestamp = time.strftime('%H:%M:%S', time.localtime())
+    user_snippet = render_message_snippet(role="user", content=message, timestamp=timestamp)
 
     await broadcast_snippet(user_snippet)
 
@@ -75,13 +76,37 @@ async def send_message(request: Request, message: str = Form(...)):
     # return the user snippet for immediate local insert
     # return user_snippet
 
+@app.get("/memories", response_class=HTMLResponse)
+async def read_root():
+    template = templates.get_template("inspector.html")
+    return template.render()
+
+@app.get("/api/memories", response_class=JSONResponse)
+async def get_memories(request: Request):
+    try:
+        memories = memory_graph.get_memories(sort='timestamp', reverse=False)
+        formatted = [
+            {
+                "memory_id": mem['memory_id'],
+                "memory_type": mem['memory_type'],
+                "content": mem['content'],
+                "metadata": mem['metadata'],
+                "timestamp": mem['timestamp']
+            }
+            for mem in memories
+        ]
+        return {"memories": formatted, "graph_file": memory_graph.graph_file}
+    except Exception as e:
+        return {"error": str(e)}, 400
+
 async def memory_callback(memory):
     memory_type = memory['memory_type']
     content = memory["content"]
     role = memory["metadata"].get("role")
+    timestamp = time.strftime('%H:%M:%S', time.localtime(memory["timestamp"]))
 
     if memory_type == 'external' and role == "assistant":
-        assistant_snippet = render_message_snippet(role="assistant", content=content)
+        assistant_snippet = render_message_snippet(role="assistant", content=content, timestamp=timestamp)
         await broadcast_snippet(assistant_snippet)
     # elif memory_type == 'internal' and self.print_internals:
     #     pass
@@ -99,10 +124,10 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         active_connections.remove(websocket)
 
-def render_message_snippet(role: str, content: str) -> str:
+def render_message_snippet(role: str, content: str, timestamp: str) -> str:
     snippet = templates.get_template("message.html").render(
         request=None,
-        message={"role": role, "content": content},
+        message={"role": role, "content": content, "timestamp": timestamp},
         submit=True,
     )
     # wrap snippet w/ oob directive so htmx injects it into #chat-box

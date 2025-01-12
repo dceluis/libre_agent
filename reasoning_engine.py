@@ -5,10 +5,9 @@ import threading
 
 from memory_graph import memory_graph
 from units.reasoning_unit import ReasoningUnit
-from working_memory import WorkingMemory, WorkingMemoryAsync
+from working_memory import WorkingMemoryAsync
 from logger import logger
 from utils import load_units, load_tools
-import working_memory
 
 _scheduled_reflection_counter = 0
 
