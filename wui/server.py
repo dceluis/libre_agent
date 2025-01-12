@@ -1,32 +1,49 @@
-from fastapi import FastAPI, Request, Form, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 import uvicorn
 import os
 import sys
-import asyncio
 import argparse
+from typing import List
+
+from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from contextlib import asynccontextmanager
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import necessary components from your existing codebase
-from working_memory import WorkingMemory
+from reasoning_engine import LibreAgentEngine
 from memory_graph import memory_graph
 from logger import logger
-
-app = FastAPI()
-
-# Mount static files (CSS, JS)
-app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'static')), name="static")
 
 # Set up templates
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), 'templates'))
 
-# Initialize working memory
-working_memory = WorkingMemory()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    engine = LibreAgentEngine()
+    working_memory = engine.working_memory
 
-# In-memory storage for messages (for simplicity)
+    app.state.wm = working_memory
+    app.state.engine = engine
+
+    working_memory.register_observer(memory_callback)
+    engine.start()
+
+    yield
+
+    engine.stop()
+
+app = FastAPI(lifespan=lifespan)
+
+# Mount static files (CSS, JS)
+app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), 'static')), name="static")
+
+# track websocket connections
+active_connections: List[WebSocket] = []
+
 def get_chat_history():
     """Retrieve chat history from memory graph"""
     memories = memory_graph.get_memories(memory_type='external', sort='timestamp', reverse=False)
@@ -41,38 +58,65 @@ def get_chat_history():
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
-
-    logger.info(f"Chat page accessed.")
-
+    logger.info("chat page accessed.")
     chat_history = get_chat_history()
-
+    # you might add hx-websockets extension scripts here in the template
     return templates.TemplateResponse("chat.html", {"request": request, "messages": chat_history})
 
 @app.post("/send_message", response_class=HTMLResponse)
 async def send_message(request: Request, message: str = Form(...)):
-    logger.info(f"User sent message: {message}")
+    user_snippet = render_message_snippet(role="user", content=message)
 
-    # Process the message using your AI assistant
-    response = await generate_response(message)
+    await broadcast_snippet(user_snippet)
 
-    # Return the latest message to update the chat
-    return templates.TemplateResponse("message.html", {"request": request, "message": {"role": "user", "content": message}})
+    # generate + broadcast the assistant response
+    app.state.wm.add_interaction("user", message)
 
-async def generate_response(message: str) -> str:
+    # return the user snippet for immediate local insert
+    # return user_snippet
+
+async def memory_callback(memory):
+    memory_type = memory['memory_type']
+    content = memory["content"]
+    role = memory["metadata"].get("role")
+
+    if memory_type == 'external' and role == "assistant":
+        assistant_snippet = render_message_snippet(role="assistant", content=content)
+        await broadcast_snippet(assistant_snippet)
+    # elif memory_type == 'internal' and self.print_internals:
+    #     pass
+    else:
+        return
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
     try:
-        # Add user message to working memory
-        working_memory.add_interaction("user", message)
+        while True:
+            # Keep connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
 
-        # Retrieve the latest assistant message from working memory
-        last_assistant = working_memory.get_last_assistant_output()
+def render_message_snippet(role: str, content: str) -> str:
+    snippet = templates.get_template("message.html").render(
+        request=None,
+        message={"role": role, "content": content},
+        submit=True,
+    )
+    # wrap snippet w/ oob directive so htmx injects it into #chat-box
+    oob_snippet = f"""
+<div hx-swap-oob="beforeend" id="chat-box">
+    {snippet}
+</div>
+"""
+    return oob_snippet
 
-        if last_assistant:
-            return last_assistant
-        else:
-            return "I'm here to help!"
-    except Exception as e:
-        logger.error(f"Error generating response: {e}")
-        return "Sorry, I encountered an error processing your request."
+async def broadcast_snippet(snippet: str):
+    # broadcast a partial html snippet to every ws connection
+    for conn in active_connections:
+        await conn.send_text(snippet)
 
 if __name__ == "__main__":
     # Parse CLI arguments

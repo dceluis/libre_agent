@@ -5,7 +5,7 @@
     <span class="message-content">{{ message.content }}</span>
 </div>
 
-{% if message.role == 'user' %}
+{% if submit %}
 <script>
     // Clear the input field after a user message is added
     document.querySelector('input[name="message"]').value = '';

@@ -8,6 +8,7 @@ litellm==1.55.9
 
 fastapi
 uvicorn
+websockets
 python-multipart
 
 prompt_toolkit
