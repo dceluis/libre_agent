@@ -18,6 +18,7 @@
 !recall_recognizer.py
 !memory_graph.py
 !working_memory.py
+!reasoning_engine.py
 
 !units/
 !units/*.py

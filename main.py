@@ -3,7 +3,7 @@ import schedule
 import time
 import sys
 import argparse
-import threading
+from reasoning_engine import LibreAgentEngine
 import math
 
 # import litellm
@@ -20,9 +20,6 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app_or_none, run_in_terminal
 
 from units.reasoning_unit import ReasoningUnit
-from utils import load_units, load_tools
-from memory_graph import memory_graph
-from working_memory import WorkingMemory
 from logger import logger
 import asyncio
 
@@ -83,7 +80,7 @@ class PromptToolkitChatInterface:
     def stop(self):
         self.running = False
 
-    def memory_callback(self, memory):
+    async def memory_callback(self, memory):
         app = get_app_or_none()
 
         memory_type = memory['memory_type']
@@ -108,28 +105,23 @@ class PromptToolkitChatInterface:
             print_func()
 
 async def main(deep_schedule, quick_schedule, print_internals, memory_graph_file):
-    load_units()
-    load_tools()
+    engine = LibreAgentEngine(
+        deep_schedule=deep_schedule,
+        quick_schedule=quick_schedule,
+        memory_graph_file=memory_graph_file
+    )
 
-    if memory_graph_file:
-        memory_graph.set_graph_file_path(memory_graph_file)
-
-    working_memory = WorkingMemory()
-    loop = asyncio.get_event_loop()
-    loop.create_task(working_memory.process_notification_queue())
-
-    gcd_val = math.gcd(deep_schedule, quick_schedule)
-    schedule.every(gcd_val).minutes.do(run_reflection, quick_schedule, deep_schedule, working_memory)
-    scheduler_thread = threading.Thread(target=start_scheduler, daemon=True)
-    scheduler_thread.start()
+    working_memory = engine.working_memory
 
     chat_interface = PromptToolkitChatInterface(working_memory)
     chat_interface.print_internals = print_internals
     try:
+        engine.start()
         await chat_interface.start()
     except Exception as e:
         logger.error(f"error in main loop: {e}\n{traceback.format_exc()}")
     finally:
+        engine.stop()
         sys.exit(0)
 
 if __name__ == "__main__":

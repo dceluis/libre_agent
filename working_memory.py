@@ -1,6 +1,7 @@
 import uuid
 import time
 import asyncio
+import queue
 from memory_graph import memory_graph
 from logger import logger
 from recall_recognizer import RecallRecognizer
@@ -12,57 +13,21 @@ class WorkingMemory:
         self.id = str(uuid.uuid4())
         self.created_at = time.time()
 
-        self.observers = [self.reflex, self.persist]
-
-        # let's store interactions in a queue so we don't fire the async loop directly
-        self.notification_queue = asyncio.Queue()
+        self.observers = []
 
         self.memories = []
 
         logger.info(f"WorkingMemory initialized with ID: {self.id}")
 
-    def register_observer(self, observer_callback):
-        self.observers.append(observer_callback)
+    def register_observer(self, observer):
+        self.observers.append(observer)
 
-    def reflex(self, memory):
-        if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
-            self.execute()
+    def _notify_observers(self, memory):
+        for observer in self.observers:
+            observer(memory)
 
-    def persist(self, memory):
-        metadata = memory.get('metadata', {})
-
-        def _do_persist():
-            memory_id = memory_graph.add_memory(
-                memory.get('memory_type'),
-                memory.get('content'),
-                metadata=metadata,
-                parent_memory_ids=memory.get('parent_memory_ids')
-            )
-            memory['memory_id'] = memory_id
-
-        if memory['memory_type'] == 'external':
-            _do_persist()
-        elif memory['memory_type'] == 'internal' and metadata['role'] != 'working_memory':
-            _do_persist()
-
-    async def process_notification_queue(self):
-        """
-        call this in your event loop to process any newly added interactions 
-        without blocking. e.g., loop.create_task(wm.process_notification_queue())
-        """
-        while True:
-            memory = await self.notification_queue.get()
-
-            self.notify_observers(memory)
-
-            self.notification_queue.task_done()
-
-    def notify_observers(self, memory):
-        for callback in self.observers:
-            try:
-                callback(memory)
-            except Exception as e:
-                logger.error(f"Error notifying observer: {e}")
+    def _process_memory(self, memory):
+        self._notify_observers(memory)
 
     def add_memory(self, memory_type, content, parent_memory_ids=None, metadata=None):
         if parent_memory_ids is None:
@@ -101,7 +66,7 @@ class WorkingMemory:
 
         self.memories.append(memory)
 
-        self.notification_queue.put_nowait(memory)
+        self._process_memory(memory)
 
         logger.info(f"Added memory to WorkingMemory {self.id}")
 
@@ -212,3 +177,23 @@ class WorkingMemory:
 
         if last_assistant_output:
             self._forget(last_assistant_output)
+
+class WorkingMemoryAsync(WorkingMemory):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.async_queue = asyncio.Queue()
+        self.processing_task = asyncio.create_task(self._process_async_queue())
+
+    async def _process_async_queue(self):
+        while True:
+            memory = await self.async_queue.get()
+            self._notify_observers(memory)
+            self.async_queue.task_done()
+
+    def _process_memory(self, memory):
+        self.async_queue.put_nowait(memory)
+
+    def _notify_observers(self, memory):
+        for observer in self.observers:
+            asyncio.create_task(observer(memory))
