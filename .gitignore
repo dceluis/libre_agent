@@ -20,19 +20,17 @@
 !working_memory.py
 !reasoning_engine.py
 
-!units/
 !units/*.py
 
-!tools/
 !tools/*.py
 
-!doc/
-!doc/**/*.md
+!doc/architecture/*.md
 
-!wui/
-!wui/**/*
+!wui/*.py
+!wui/static/*.css
+!wui/static/*.js
+!wui/templates/*.html
 
-!benchmark/
 !benchmark/*.py
 !benchmark/*.yml
 !benchmark/*.yaml
