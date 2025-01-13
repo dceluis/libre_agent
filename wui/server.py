@@ -17,14 +17,26 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Import necessary components from your existing codebase
 from reasoning_engine import LibreAgentEngine
 from memory_graph import memory_graph
-from logger import logger
+
+quick_schedule = 5
+deep_schedule = 10
+graph_file = None
 
 # Set up templates
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), 'templates'))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    engine = LibreAgentEngine()
+    global graph_file
+    global deep_schedule
+    global quick_schedule
+
+    engine = LibreAgentEngine(
+        quick_schedule=quick_schedule,
+        deep_schedule=deep_schedule,
+        memory_graph_file=graph_file
+    )
+
     working_memory = engine.working_memory
 
     app.state.wm = working_memory
@@ -146,12 +158,20 @@ async def broadcast_snippet(snippet: str):
 if __name__ == "__main__":
     # Parse CLI arguments
     parser = argparse.ArgumentParser()
+
     parser.add_argument("--graph-file", help="Path to the memory graph file", default=None)
+    parser.add_argument('--deep-schedule', type=int, default=10, help='deep reflection schedule in minutes')
+    parser.add_argument('--quick-schedule', type=int, default=5, help='quick reflection schedule in minutes')
     parser.add_argument("--host", help="Host address to bind the server", default="0.0.0.0")
     parser.add_argument("--port", help="Port number to bind the server", default=5000)
+
     args = parser.parse_args()
 
     if args.graph_file:
-        memory_graph.set_graph_file_path(args.graph_file)
+        graph_file = args.graph_file
+    if args.quick_schedule:
+        quick_schedule = args.quick_schedule
+    if args.deep_schedule:
+        deep_schedule = args.deep_schedule
 
     uvicorn.run(app, host=args.host, port=args.port)
