@@ -1,6 +1,5 @@
 from litellm import completion
 import traceback
-import re
 import os
 from colorama import init, Fore, Style
 
@@ -58,7 +57,7 @@ class ReasoningUnit():
 
         return traits
 
-    def execute(self, working_memory, mode="quick"):
+    def reason(self, working_memory, mode="quick"):
         """
         Execute either a quick reflection or a deeper reflection.
 
@@ -129,16 +128,6 @@ Operating principles:
 System tools:
 {self.describe_tools()}
 """
-
-    def get_last_reflection(self):
-        last_reflections = memory_graph.get_memories(
-            memory_type='internal',
-            metadata={'unit_name': self.unit_name},
-            last=1
-        )
-        last_reflection = last_reflections[0]['content'] if last_reflections else "No prior reflection."
-
-        return last_reflection
 
     def quick_reflection(self, working_memory):
         if not working_memory:
@@ -217,9 +206,14 @@ from the following list of available tools:
 
             reflection_text = completion_response['choices'][0]['message']['content'].strip()
 
-            # Check for optional tool usage
-            self.maybe_invoke_tool('quick', reflection_text, working_memory)
-
+            working_memory.add_memory(
+                memory_type = 'internal',
+                content = reflection_text,
+                metadata = {
+                    'role': 'working_memory',
+                    'unit_name': 'reasoning_unit'
+                }
+            )
         except Exception as e:
             logger.error(f"Error in quick_reflection (ReasoningUnit): {e}\n{traceback.format_exc()}")
 
@@ -298,8 +292,14 @@ from the following list of available tools:
 
             analysis = completion_response['choices'][0]['message']['content'].strip()
 
-            # Check for optional tool usage
-            self.maybe_invoke_tool('deep', analysis, working_memory)
+            working_memory.add_memory(
+                memory_type = 'internal',
+                content = analysis,
+                metadata = {
+                    'role': 'working_memory',
+                    'unit_name': 'reasoning_unit'
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error in deeper_reflection (ReasoningUnit): {e}\n{traceback.format_exc()}")
@@ -318,46 +318,3 @@ from the following list of available tools:
     def allowed_tools(self, mode):
         return ", ".join([tool['name'] for tool in ToolRegistry.get_tools(mode)])
 
-    def maybe_invoke_tool(self, mode=None, reflection_text="", working_memory=None):
-        tools_match = re.findall(
-            r'<tool>\s*<name>([^<]+)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
-            reflection_text,
-            re.DOTALL
-        )
-        if tools_match and working_memory is not None:
-            for tool_name, tool_params_block in tools_match:
-                tool = next((t for t in ToolRegistry.get_tools(mode) if t['name'] == tool_name), None)
-                if tool:
-                    try:
-                        # parse all <parameter> elements
-                        all_params = re.findall(
-                            r'<parameter>\s*<name>([^<]+)</name>\s*<value>([^<]+)</value>\s*</parameter>',
-                            tool_params_block,
-                            re.DOTALL
-                        )
-                        params_dict = {}
-                        for param_name, param_value in all_params:
-                            params_dict[param_name] = param_value
-
-                        tool_instance = tool['class'](working_memory)
-
-                        logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
-
-                        if params_dict:
-                            result = tool_instance.run(**params_dict)
-                        else:
-                            result = tool_instance.run()
-
-                        result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}."
-
-                        logger.info(result_msg)
-                    except Exception as e:
-                        result_msg = f"Failed to run tool '{tool_name}': {e}"
-
-                        logger.error(result_msg)
-                else:
-                    result_msg = f"Tool '{tool_name}' not available.",
-
-                    logger.warning(result_msg)
-
-                working_memory.add_memory( "internal", result_msg, metadata={'unit_name': self.unit_name})

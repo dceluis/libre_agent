@@ -1,7 +1,7 @@
 from tool_registry import ToolRegistry
 from logger import logger
 
-class CoreMemoryTool:
+class MemoryTool:
     name = "Memory Tool"
     description = """
 <tool>
@@ -9,44 +9,37 @@ class CoreMemoryTool:
     <description>
 Use this tool to add a memory to the system.
 
-## core_memory
-The core memory is used to store important information that needs to be
-accessible across all units.
+Parameters:
+- temporal_scope: 'short_term' or 'long_term'
+- role:
+  - 'reflection' (typically short_term, ephemeral self-observations)
+  - 'episodic' (long_term, personal experiences/events)
+  - 'semantic' (long_term, general facts/knowledge)
+  - 'procedural' (long_term, skills/instructions)
+  - 'core_memory' (crucial info available to all units, usually long_term)
 
 Guidelines:
-- Use this tool to update the core memory with new information.
-
-Be comprehensive in your analysis and recommendations. Include structured
-information, such as, but not limited to:
-
-- The system's role and purpose.
-- Immediate and long-term goals for the system.
-- An action plan for achieving the goals.
-- Observations and reflections on the system's performance.
-
-## reflection
-A generic internal reflection
-
-Guidelines:
-- Use this tool to add a memory with new an internal reflection.
+- 'reflection' memories replace the old generic internal reflections, and are usually short_term.
+- 'core_memory' stands in for vital info or strategic goals that should not be forgotten.
+- if in doubt, store ephemeral updates as short_term 'reflection' and more permanent data as long_term with the relevant scope.
 
     </description>
     <parameters>
         <parameter>
             <name>unit_name</name>
-            <description>The name of the unit that is using the tool.</description>
+            <description>the name of the unit that is using the tool.</description>
         </parameter>
         <parameter>
             <name>content</name>
-            <description>The proposed contents of the memory.</description>
+            <description>the proposed contents of the memory.</description>
+        </parameter>
+        <parameter>
+            <name>temporal_scope</name>
+            <description>either 'short_term' or 'long_term'</description>
         </parameter>
         <parameter>
             <name>role</name>
-            <description>The role of the memory, either 'core_memory' or 'reflection'.</description>
-            <enum>
-                <value>core_memory</value>
-                <value>reflection</value>
-            </enum>
+            <description>'reflection' (ephemeral), 'episodic', 'semantic', 'procedural', 'core_memory'</description>
         </parameter>
     </parameters>
 </tool>
@@ -54,8 +47,10 @@ Guidelines:
     def __init__(self, working_memory):
         self.working_memory = working_memory
 
-    def run(self, unit_name, content, role='core_memory', **kwargs):
+    def run(self, unit_name, content, temporal_scope='short_term', role='reflection', **kwargs):
         metadata = {
+            'temporal_scope': temporal_scope,
+
             'role': role,
             'unit_name': unit_name
         }
@@ -66,9 +61,7 @@ Guidelines:
             metadata=metadata
         )
 
-        logger.info("Memory has been set/updated.")
-
+        logger.debug(f"Memory added for unit='{unit_name}', " f"temporal_scope='{temporal_scope}', role='{role}'.")
         return True
 
-# Register the tool
-ToolRegistry.register_tool(CoreMemoryTool)
+ToolRegistry.register_tool(MemoryTool)

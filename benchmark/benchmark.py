@@ -17,8 +17,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from memory_graph import memory_graph
 from working_memory import WorkingMemory
 from logger import logger
-from utils import load_units, load_tools
-
+from utils import load_units, load_tools, maybe_invoke_tool
 
 base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
 
@@ -29,6 +28,8 @@ def run_qa_scenario(eval: dict):
 
     wm.add_interaction("user", question)
     wm.execute()
+    reason_memory = wm.get_memories(memory_type="internal", last=1)[0]
+    maybe_invoke_tool(reason_memory, wm)
     answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, last=1)
 
     answer = "<NO ANSWER>"
@@ -68,6 +69,7 @@ def populate_memory_graph(data: dict, memory_graph_path: str):
     mg.set_graph_file_path(memory_graph_path)
 
     messages = data.get("messages", [])
+
 
     for msg in messages:
         role = msg.get("role", "user")

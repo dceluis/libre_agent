@@ -7,17 +7,17 @@ from memory_graph import memory_graph
 from units.reasoning_unit import ReasoningUnit
 from working_memory import WorkingMemoryAsync
 from logger import logger
-from utils import load_units, load_tools
+from utils import load_units, load_tools, maybe_invoke_tool
 
 _scheduled_reflection_counter = 0
 
-def _run_deep_reflection(working_memory):
+def _deep_reflection(working_memory):
     reasoning = ReasoningUnit()
-    reasoning.execute(working_memory, mode="deep")
+    reasoning.reason(working_memory, mode="deep")
 
-def _run_quick_reflection(working_memory):
+def _quick_reflection(working_memory):
     reasoning = ReasoningUnit()
-    reasoning.execute(working_memory, mode="quick")
+    reasoning.reason(working_memory, mode="quick")
 
 def _run_reflection(quick_schedule, deep_schedule, working_memory):
     global _scheduled_reflection_counter
@@ -26,9 +26,9 @@ def _run_reflection(quick_schedule, deep_schedule, working_memory):
     elapsed = _scheduled_reflection_counter * gcd_val
 
     if elapsed % deep_schedule == 0:
-        _run_deep_reflection(working_memory)
+        _deep_reflection(working_memory)
     elif elapsed % quick_schedule == 0:
-        _run_quick_reflection(working_memory)
+        _quick_reflection(working_memory)
 
 def _scheduler_loop(stop_flag):
     while not stop_flag.is_set():
@@ -90,34 +90,33 @@ class LibreAgentEngine:
             schedule.clear()
         logger.info("libreagentengine: fully stopped.")
 
-    def execute_reasoning_cycle(self, mode="quick"):
-        """
-        if you want to trigger a reflection cycle outside the schedule,
-        you can do it here.
-        """
-        if mode == "quick":
-            _run_quick_reflection(self.working_memory)
-        else:
-            _run_deep_reflection(self.working_memory)
-
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
             self.working_memory.execute()
+        elif memory['memory_type'] == 'internal' and memory['metadata'].get('role') == 'working_memory':
+            maybe_invoke_tool(memory, self.working_memory)
 
     async def persist(self, memory):
         metadata = memory.get('metadata', {})
+        memory_type = memory.get('memory_type')
+        content = memory.get('content')
+
+        role = metadata.get('role')
 
         def _do_persist():
             memory_id = memory_graph.add_memory(
-                memory.get('memory_type'),
-                memory.get('content'),
+                memory_type,
+                content,
                 metadata=metadata,
                 parent_memory_ids=memory.get('parent_memory_ids')
             )
             memory['memory_id'] = memory_id
+            logger.info(f'Persisted memory: type={memory_type}, role={role}, metadata={metadata}')
 
-        if memory['memory_type'] == 'external':
+        if memory_type == 'external':
             _do_persist()
-        elif memory['memory_type'] == 'internal' and metadata['role'] != 'working_memory':
+        elif memory_type == 'internal' and role != 'working_memory':
             _do_persist()
+        else:
+            logger.warning(f'Memory not persisted: type={memory_type}, content={content}, metadata={metadata}')
 

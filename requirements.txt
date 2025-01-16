@@ -6,9 +6,14 @@ pytest==7.2.0
 pytest-mock==3.10.0
 litellm==1.55.9
 
+# web ui
 fastapi
 uvicorn
 websockets
 python-multipart
 
+# cmd line 
 prompt_toolkit
+
+# telegram
+aiogram

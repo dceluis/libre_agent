@@ -131,6 +131,16 @@ class WorkingMemory:
             return memories[0]['content']
         return None
 
+    def get_last_reasoning_output(self):
+        memories = self.get_memories(
+            metadata={'role': 'working_memory'},
+            last=1,
+            memory_type='internal',
+        )
+        if memories:
+            return memories[0]['content']
+        return None
+
     def _recall(self, user_prompt):
         exclude_ids = [m['memory_id'] for m in self.memories]
         rr = RecallRecognizer()
@@ -168,12 +178,12 @@ class WorkingMemory:
 
         logger.info(f"Executing ReasoningUnit")
         try:
-            unit.execute(self)
+            unit.reason(self)
             logger.info(f"ReasoningUnit succeeded")
         except Exception as e:
             logger.error(f"ReasoningUnit failed: {e}")
 
-        last_assistant_output = self.get_last_assistant_output()
+        last_assistant_output = self.get_last_reasoning_output()
 
         if last_assistant_output:
             self._forget(last_assistant_output)

@@ -86,7 +86,7 @@ class MemoryGraph:
         role = metadata.get('role')
         unit_name = metadata.get('unit_name', 'N/A')
 
-        logger.info(f"Added memory {memory_id}: Type={memory_type}, Role={role}, Unit={unit_name}")
+        logger.debug(f"Added memory {memory_id}: Type={memory_type}, Role={role}, Unit={unit_name}")
 
         # Add edges from parent memories to this memory
         for parent_id in parent_memory_ids:

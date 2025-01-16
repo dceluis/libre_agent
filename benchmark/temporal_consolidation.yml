@@ -1,0 +1,152 @@
+title: "Temporal Memory Consolidation Test"
+description: >
+  This benchmark tests the system's ability to consolidate sequences of related messages
+  into coherent summary memories. Rather than testing reasoning, it tests whether the
+  system can recognize temporal patterns and group related messages into higher-level
+  consolidated memories that capture complete narratives.
+
+messages:
+  # First sequence: Morning routine messages spread across time
+  - timestamp: "2025-01-05T07:00:00"
+    role: user
+    content: "Just woke up, starting my morning routine."
+
+  - timestamp: "2025-01-05T07:01:00"
+    role: assistant
+    content: "Good morning! I hope you have a great day."
+
+  - timestamp: "2025-01-05T07:15:00"
+    role: user
+    content: "Making some coffee first."
+
+  - timestamp: "2025-01-05T07:30:00"
+    role: user
+    content: "Quick shower done."
+
+  - timestamp: "2025-01-05T07:31:00"
+    role: assistant
+    content: "Sounds like you're moving along with your routine efficiently!"
+
+  - timestamp: "2025-01-05T07:45:00"
+    role: user
+    content: "Having toast with eggs."
+
+  - timestamp: "2025-01-05T08:00:00"
+    role: user
+    content: "Getting dressed for work."
+
+  - timestamp: "2025-01-05T08:15:00"
+    role: user
+    content: "Heading out to catch the bus."
+
+  - timestamp: "2025-01-05T08:16:00"
+    role: assistant
+    content: "Have a safe trip to work!"
+
+  # Different topic interjected
+  - timestamp: "2025-01-05T11:30:00"
+    role: user
+    content: "Weather is quite nice today."
+
+  - timestamp: "2025-01-05T11:31:00"
+    role: assistant
+    content: "Perfect weather for a lunch break outdoors perhaps!"
+
+  # Second sequence: Evening cooking messages split across interruptions
+  - timestamp: "2025-01-05T17:00:00"
+    role: user
+    content: "Going to try that new recipe."
+
+  - timestamp: "2025-01-05T17:01:00"
+    role: assistant
+    content: "What's on the menu tonight?"
+
+  - timestamp: "2025-01-05T17:15:00"
+    role: user
+    content: "Chopping lots of vegetables."
+
+  # Interruption
+  - timestamp: "2025-01-05T17:20:00"
+    role: user
+    content: "My neighbor just stopped by to borrow some sugar."
+
+  - timestamp: "2025-01-05T17:21:00"
+    role: assistant
+    content: "That's nice of you to help!"
+
+  - timestamp: "2025-01-05T17:30:00"
+    role: user
+    content: "Back to cooking. Adding the protein now."
+
+  # Another interruption
+  - timestamp: "2025-01-05T17:35:00"
+    role: user
+    content: "Had to take a quick phone call from work."
+
+  - timestamp: "2025-01-05T17:45:00"
+    role: user
+    content: "Finally mixing in the sauce."
+
+  - timestamp: "2025-01-05T17:46:00"
+    role: assistant
+    content: "Your dinner is coming along nicely!"
+
+  - timestamp: "2025-01-05T18:00:00"
+    role: user
+    content: "All done! The stir-fry turned out great."
+
+  # Third sequence: Next morning routine
+  - timestamp: "2025-01-06T07:00:00"
+    role: user
+    content: "Another day begins."
+
+  - timestamp: "2025-01-06T07:01:00"
+    role: assistant
+    content: "Good morning! Hope you slept well."
+
+  - timestamp: "2025-01-06T07:15:00"
+    role: user
+    content: "Making tea today instead of coffee."
+
+  - timestamp: "2025-01-06T07:30:00"
+    role: user
+    content: "Quick workout done."
+
+  - timestamp: "2025-01-06T07:31:00"
+    role: assistant
+    content: "Great job getting some exercise in!"
+
+  - timestamp: "2025-01-06T07:45:00"
+    role: user
+    content: "Having cereal for breakfast."
+
+  - timestamp: "2025-01-06T08:00:00"
+    role: user
+    content: "Getting ready for work."
+
+  - timestamp: "2025-01-06T08:15:00"
+    role: user
+    content: "Walking to work today."
+
+  - timestamp: "2025-01-06T08:16:00"
+    role: assistant
+    content: "Enjoy your walk! It's a healthy way to start the day."
+
+evaluations:
+  - question: "What are all my morning routines?"
+    references: [
+      "First morning (Jan 5): woke up, coffee, shower, toast/eggs, dressed, bus",
+      "Second morning (Jan 6): woke up, tea, workout, cereal, dressed, walked to work",
+      "Should NOT include: assistant's encouragements/greetings",
+      "Should NOT include: weather comment or calling mom"
+    ]
+    type: "qa"
+
+  - question: "What did I make for dinner and what interrupted the cooking?"
+    references: [
+      "Made stir-fry with vegetables and protein",
+      "Cooking was interrupted twice: neighbor borrowing sugar and a work phone call",
+      "Should NOT include: assistant's comments",
+      "Should NOT show as separate disconnected events but as a coherent narrative"
+    ]
+    type: "qa"

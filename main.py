@@ -4,7 +4,6 @@ import time
 import sys
 import argparse
 from reasoning_engine import LibreAgentEngine
-import math
 
 # import litellm
 # disable litellm logging
@@ -19,30 +18,10 @@ ITALIC_RESET = '\x1b[23m'
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app_or_none, run_in_terminal
 
-from units.reasoning_unit import ReasoningUnit
 from logger import logger
 import asyncio
 
 schedule_counter = 0
-
-def run_deep_reflection(working_memory):
-    reasoning = ReasoningUnit()
-    reasoning.execute(working_memory, mode="deep")
-
-def run_quick_reflection(working_memory):
-    reasoning = ReasoningUnit()
-    reasoning.execute(working_memory, mode="quick")
-
-def run_reflection(quick_schedule, deep_schedule, working_memory):
-    global schedule_counter
-    schedule_counter += 1
-    gcd = math.gcd(deep_schedule, quick_schedule)
-    elapsed = schedule_counter * gcd
-
-    if elapsed % deep_schedule == 0:
-        run_deep_reflection(working_memory)
-    elif elapsed % quick_schedule == 0:
-        run_quick_reflection(working_memory)
 
 def start_scheduler():
     while True:

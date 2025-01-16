@@ -4,6 +4,8 @@ import importlib
 import time
 from pathlib import Path
 from logger import logger
+import re
+from tool_registry import ToolRegistry
 
 def load_units():
     units_dir = Path(__file__).parent / 'units'
@@ -46,3 +48,48 @@ def format_memories(memories):
         formatted += f"[{timestamp}] {memory_type} ({metadata_str}): {content}\n"
     return formatted.strip()
 
+def maybe_invoke_tool(memory, working_memory):
+    reflection_text = memory['content']
+    tools_match = re.findall(
+
+        r'<tool>\s*<name>([^<]+)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
+        reflection_text,
+        re.DOTALL
+    )
+    if tools_match and working_memory is not None:
+        for tool_name, tool_params_block in tools_match:
+            tool = next((t for t in ToolRegistry.tools if t['name'] == tool_name), None)
+            if tool:
+                try:
+                    # parse all <parameter> elements
+                    all_params = re.findall(
+                        r'<parameter>\s*<name>([^<]+)</name>\s*<value>([^<]+)</value>\s*</parameter>',
+                        tool_params_block,
+                        re.DOTALL
+                    )
+                    params_dict = {}
+                    for param_name, param_value in all_params:
+                        params_dict[param_name] = param_value
+
+                    tool_instance = tool['class'](working_memory)
+
+                    logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
+
+                    if params_dict:
+                        result = tool_instance.run(**params_dict)
+                    else:
+                        result = tool_instance.run()
+
+                    result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}."
+
+                    logger.info(result_msg)
+                except Exception as e:
+                    result_msg = f"Failed to run tool '{tool_name}': {e}"
+
+                    logger.error(result_msg)
+            else:
+                result_msg = f"Tool '{tool_name}' not available.",
+
+                logger.warning(result_msg)
+
+            working_memory.add_memory("internal", result_msg, metadata={'unit_name': 'ReasoningEngine'})
