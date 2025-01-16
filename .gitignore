@@ -40,6 +40,9 @@
 !benchmark/*.yaml
 benchmark/tmp/**/*
 
+!bots/
+!bots/*.py
+
 # !pytest.ini
 # !tests/
 # !tests/*.py

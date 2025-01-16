@@ -1,0 +1,151 @@
+import asyncio
+import os
+import sys
+import argparse
+from typing import Dict
+
+from aiogram import Bot, Dispatcher, Router, F
+from aiogram.enums import ParseMode
+from aiogram.types import Message
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from reasoning_engine import LibreAgentEngine
+from logger import logger
+
+# Initialize router
+router = Router()
+
+# Store chat-specific engines
+chat_engines: Dict[int, LibreAgentEngine] = {}
+
+# Store bot instance globally
+bot = None
+
+# Store configuration
+config = {
+    'deep_schedule': 10,
+    'quick_schedule': 5,
+    'memory_graph_file': None
+}
+
+async def send_message(chat_id: int, text: str):
+    """Utility function to send proactive messages"""
+    try:
+        if bot is not None:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+    except Exception as e:
+        logger.error(f"Error sending proactive message to chat {chat_id}: {e}")
+
+@router.message(F.text == "/start")
+async def send_welcome(message: Message):
+    """Handle the /start command"""
+    await message.reply("Hi! I'm LibreAgent. I'm here to help and chat with you!")
+
+    # Initialize a new engine for this chat if it doesn't exist
+    if message.chat.id not in chat_engines:
+        engine = LibreAgentEngine(
+            deep_schedule=config['deep_schedule'],
+            quick_schedule=config['quick_schedule'],
+            memory_graph_file=f"{config['memory_graph_file']}_{message.chat.id}" if config['memory_graph_file'] else None
+        )
+
+        # Register observer for proactive messages
+        async def proactive_handler(memory):
+            if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
+                await send_message(message.chat.id, memory['content'])
+
+        engine.working_memory.register_observer(proactive_handler)
+        engine.start()
+        chat_engines[message.chat.id] = engine
+
+@router.message()
+async def handle_messages(message: Message):
+    """Handle all other messages"""
+    try:
+        # Get or create chat-specific engine
+        if message.chat.id not in chat_engines:
+            engine = LibreAgentEngine(
+                deep_schedule=config['deep_schedule'],
+                quick_schedule=config['quick_schedule'],
+                memory_graph_file=f"{config['memory_graph_file']}_{message.chat.id}" if config['memory_graph_file'] else None
+            )
+
+            # Register observer for proactive messages
+            async def proactive_handler(memory):
+                if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
+                    await send_message(message.chat.id, memory['content'])
+
+            engine.working_memory.register_observer(proactive_handler)
+            engine.start()
+            chat_engines[message.chat.id] = engine
+
+        engine = chat_engines[message.chat.id]
+        working_memory = engine.working_memory
+
+        # Add user message to working memory
+        working_memory.add_interaction("user", message.text)
+
+        # # Register response handler for direct replies
+        # async def handle_response(memory):
+        #     if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
+        #         await message.reply(memory['content'], parse_mode=ParseMode.MARKDOWN)
+        #
+        # # Register temporary observer for this interaction
+        # working_memory.register_observer(handle_response)
+
+        # Execute reasoning
+        # working_memory.execute()
+
+    except Exception as e:
+        logger.error(f"Error handling message: {e}")
+        await message.reply("Sorry, I encountered an error while processing your message.")
+
+async def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="LibreAgent Telegram Bot")
+    parser.add_argument('--deep-schedule', type=int, default=10,
+                      help='Deep reflection schedule in minutes')
+    parser.add_argument('--quick-schedule', type=int, default=5,
+                      help='Quick reflection schedule in minutes')
+    parser.add_argument('--memory-graph-file', type=str,
+                      help='Base path for memory graph files')
+    args = parser.parse_args()
+
+    # Update config
+    config.update({
+        'deep_schedule': args.deep_schedule,
+        'quick_schedule': args.quick_schedule,
+        'memory_graph_file': args.memory_graph_file
+    })
+
+    # Initialize bot and dispatcher
+    global bot
+    bot = Bot(token=os.getenv('TELEGRAM_BOT_TOKEN', ''))
+    dp = Dispatcher()
+
+    # Register router
+    dp.include_router(router)
+
+    # Start polling
+    logger.info(f"Starting bot with deep_schedule={config['deep_schedule']}, "
+                f"quick_schedule={config['quick_schedule']}, "
+                f"memory_graph_file={config['memory_graph_file']}")
+
+    try:
+        await dp.start_polling(bot)
+    finally:
+        # Stop all engines
+        for engine in chat_engines.values():
+            engine.stop()
+        chat_engines.clear()
+
+        await bot.session.close()
+        logger.info("Bot stopped!")
+
+if __name__ == '__main__':
+    asyncio.run(main())
