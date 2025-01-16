@@ -42,10 +42,11 @@ def format_memories(memories):
     for entry in memories:
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(entry['timestamp']))
         content = entry['content']
+        memory_id = entry['memory_id']
         memory_type = entry['memory_type']
         metadata = entry['metadata']
         metadata_str = ', '.join(f"{k}={v}" for k, v in metadata.items())
-        formatted += f"[{timestamp}] {memory_type} ({metadata_str}): {content}\n"
+        formatted += f"[{timestamp}] - ID: {memory_id} - {memory_type} - ({metadata_str}): {content}\n"
     return formatted.strip()
 
 def maybe_invoke_tool(memory, working_memory):

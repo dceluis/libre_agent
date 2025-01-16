@@ -94,10 +94,10 @@ is neither feasible nor efficient. Instead, we provide you with a best-effort
 summary of the current world state and relevant interactions.
 
 Furthermore, to guide and to maintain a coherent and focused operation, you are
-required to distill your goals into a "core memory" that will be used everywhere
-in the system and persist across sessions.
+required to organize your goals into "core" memories that will be used
+everywhere in the system.
 
-This core memory is a set of high-level goals and objectives that you should
+Core memories are a set of high-level goals and objectives that you should
 update and maintain as the system's objectives evolve. This is your primary
 responsibility.
 

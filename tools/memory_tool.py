@@ -16,11 +16,9 @@ Parameters:
   - 'episodic' (long_term, personal experiences/events)
   - 'semantic' (long_term, general facts/knowledge)
   - 'procedural' (long_term, skills/instructions)
-  - 'core_memory' (crucial info available to all units, usually long_term)
 
 Guidelines:
 - 'reflection' memories replace the old generic internal reflections, and are usually short_term.
-- 'core_memory' stands in for vital info or strategic goals that should not be forgotten.
 - if in doubt, store ephemeral updates as short_term 'reflection' and more permanent data as long_term with the relevant scope.
 
     </description>
@@ -39,7 +37,7 @@ Guidelines:
         </parameter>
         <parameter>
             <name>role</name>
-            <description>'reflection' (ephemeral), 'episodic', 'semantic', 'procedural', 'core_memory'</description>
+            <description>'reflection' (ephemeral), 'episodic', 'semantic', 'procedural'</description>
         </parameter>
     </parameters>
 </tool>

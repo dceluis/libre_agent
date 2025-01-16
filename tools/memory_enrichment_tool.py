@@ -1,5 +1,6 @@
 from tool_registry import ToolRegistry
 from logger import logger
+from memory_graph import memory_graph
 
 class MemoryEnrichmentTool:
     name = "Memory Enrichment Tool"
@@ -47,32 +48,68 @@ The tool analyzes existing memories to:
 </tool>
 """
     def __init__(self, working_memory):
-        self.working_memory = working_memory
+        self.memory_graph = memory_graph
+        
+    def validate_priority_level(self, priority_level):
+        valid_levels = ['CORE', 'HIGH', 'MEDIUM', 'LOW', 'BACKGROUND']
+        if priority_level not in valid_levels:
+            raise ValueError(f"Invalid priority level. Must be one of: {valid_levels}")
+            
+    def validate_relationship_type(self, relationship_type):
+        valid_types = ['requires', 'updates', 'connects']
+        if relationship_type and relationship_type not in valid_types:
+            raise ValueError(f"Invalid relationship type. Must be one of: {valid_types}")
 
-    def run(self, memory_id, priority_level, related_memory_ids=None, relationship_type=None, **kwargs):
-        metadata = {
-            'priority_level': priority_level,
-            'relationships': []
-        }
+    def run(self, memory_id: str | None = None, priority_level: str | None = None, related_memory_ids: str | None = None, relationship_type : str | None = None):
+        # Validate inputs
+        self.validate_priority_level(priority_level)
+        self.validate_relationship_type(relationship_type)
 
-        if related_memory_ids and relationship_type:
-            for related_id in related_memory_ids:
+        # Check if memory exists
+        if memory_id not in self.memory_graph.graph:
+            raise ValueError(f"Memory with ID '{memory_id}' not found")
+
+        # Prepare metadata update
+        metadata = self.memory_graph.graph.nodes[memory_id].get('metadata', {})
+        metadata['priority_level'] = priority_level
+
+        related_memory_ids_list = []
+        # Convert related_memory_ids from string to list
+        if related_memory_ids:
+            related_memory_ids_list = [id.strip() for id in related_memory_ids.split(',')]
+
+        # Handle relationships
+        if related_memory_ids_list and relationship_type:
+            if 'relationships' not in metadata:
+                metadata['relationships'] = []
+
+            for related_id in related_memory_ids_list:
+                if related_id not in self.memory_graph.graph:
+                    logger.warning(f"Related memory '{related_id}' not found, skipping relationship")
+                    continue
+
                 relationship = {
                     'type': relationship_type,
                     'target_memory_id': related_id
                 }
                 metadata['relationships'].append(relationship)
 
+                # Add edge in the graph
+                self.memory_graph.graph.add_edge(
+                    memory_id,
+                    related_id,
+                    relation_type=relationship_type
+                )
+
         # Update the memory's metadata
-        self.working_memory.update_memory_metadata(
-            memory_id=memory_id,
-            metadata=metadata
-        )
+        self.memory_graph.graph.nodes[memory_id]['metadata'] = metadata
+        self.memory_graph.save_graph()
 
         logger.debug(f"Memory enriched: id='{memory_id}', "
                     f"priority_level='{priority_level}', "
-                    f"relationships_count={len(metadata['relationships'])}")
+                    f"relationships_count={len(metadata.get('relationships', []))}")
 
         return True
 
-# ToolRegistry.register_tool(MemoryEnrichmentTool)
+# Register the tool
+ToolRegistry.register_tool(MemoryEnrichmentTool)
