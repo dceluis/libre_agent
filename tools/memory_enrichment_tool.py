@@ -52,7 +52,7 @@ The tool analyzes existing memories to:
         
     def validate_priority_level(self, priority_level):
         valid_levels = ['CORE', 'HIGH', 'MEDIUM', 'LOW', 'BACKGROUND']
-        if priority_level not in valid_levels:
+        if priority_level and priority_level not in valid_levels:
             raise ValueError(f"Invalid priority level. Must be one of: {valid_levels}")
             
     def validate_relationship_type(self, relationship_type):
@@ -61,17 +61,19 @@ The tool analyzes existing memories to:
             raise ValueError(f"Invalid relationship type. Must be one of: {valid_types}")
 
     def run(self, memory_id: str | None = None, priority_level: str | None = None, related_memory_ids: str | None = None, relationship_type : str | None = None):
-        # Validate inputs
-        self.validate_priority_level(priority_level)
-        self.validate_relationship_type(relationship_type)
-
         # Check if memory exists
         if memory_id not in self.memory_graph.graph:
             raise ValueError(f"Memory with ID '{memory_id}' not found")
 
+        # Validate inputs
+        self.validate_priority_level(priority_level)
+        self.validate_relationship_type(relationship_type)
+
         # Prepare metadata update
         metadata = self.memory_graph.graph.nodes[memory_id].get('metadata', {})
-        metadata['priority_level'] = priority_level
+
+        if priority_level:
+            metadata['priority_level'] = priority_level
 
         related_memory_ids_list = []
         # Convert related_memory_ids from string to list

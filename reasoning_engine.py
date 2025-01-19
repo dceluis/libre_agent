@@ -1,39 +1,12 @@
 import math
 import schedule
-import time
 import threading
-
+import asyncio
+from queue import PriorityQueue
 from memory_graph import memory_graph
-from units.reasoning_unit import ReasoningUnit
 from working_memory import WorkingMemoryAsync
 from logger import logger
 from utils import load_units, load_tools, maybe_invoke_tool
-
-_scheduled_reflection_counter = 0
-
-def _deep_reflection(working_memory):
-    reasoning = ReasoningUnit()
-    reasoning.reason(working_memory, mode="deep")
-
-def _quick_reflection(working_memory):
-    reasoning = ReasoningUnit()
-    reasoning.reason(working_memory, mode="quick")
-
-def _run_reflection(quick_schedule, deep_schedule, working_memory):
-    global _scheduled_reflection_counter
-    _scheduled_reflection_counter += 1
-    gcd_val = math.gcd(deep_schedule, quick_schedule)
-    elapsed = _scheduled_reflection_counter * gcd_val
-
-    if elapsed % deep_schedule == 0:
-        _deep_reflection(working_memory)
-    elif elapsed % quick_schedule == 0:
-        _quick_reflection(working_memory)
-
-def _scheduler_loop(stop_flag):
-    while not stop_flag.is_set():
-        schedule.run_pending()
-        time.sleep(1)
 
 class LibreAgentEngine:
     def __init__(self, deep_schedule=10, quick_schedule=5, memory_graph_file=None):
@@ -50,54 +23,72 @@ class LibreAgentEngine:
         self.working_memory = WorkingMemoryAsync()
 
         self.stop_flag = threading.Event()
-        self.scheduler_thread = None
+        self.reasoning_queue = PriorityQueue(maxsize=3)
+        self.reasoning_lock = threading.Lock()
+        self.async_task1 = None
+        self.async_task2 = None
+
+    async def schedule_reasoning_queue(self):
+        while not self.stop_flag.is_set():
+            schedule.run_pending()
+
+            await asyncio.sleep(1)
+
+    async def process_reasoning_queue(self):
+        while not self.stop_flag.is_set():
+            try:
+                if not self.reasoning_queue.empty():
+                    priority, func = self.reasoning_queue.get_nowait()
+                    if self.reasoning_lock.acquire(blocking=False):
+                        try:
+                            await func()
+                        finally:
+                            self.reasoning_lock.release()
+
+            except Exception as e:
+                logger.error(f"Error in reasoning queue processing: {e}", exc_info=True)
+
+            await asyncio.sleep(1)
 
     def start(self):
-        """
-        sets up the reflection schedule and launches it
-        on a separate thread, so you don't need to orchestrate from outside.
-        """
-        schedule.clear()  # purge leftover tasks if re-run
+        schedule.clear()
 
         gcd_val = math.gcd(self.deep_schedule, self.quick_schedule)
 
         if gcd_val > 0:
-            global _scheduled_reflection_counter
-            _scheduled_reflection_counter = 0
-
-            schedule.every(gcd_val).minutes.do(
-                _run_reflection, self.quick_schedule, self.deep_schedule, self.working_memory
-            )
-
+            schedule.every(gcd_val).minutes.do(self._schedule_reflection, 2)
             self.stop_flag.clear()
-            self.scheduler_thread = threading.Thread(
-                target=_scheduler_loop,
-                args=(self.stop_flag,),
-                daemon=True
-            )
-            self.scheduler_thread.start()
-
-            logger.info("libreagentengine: reflection scheduling has begun.")
 
         self.working_memory.register_observer(self.reflex)
         self.working_memory.register_observer(self.persist)
+        self.async_task1 = asyncio.create_task(self.schedule_reasoning_queue())
+        self.async_task2 = asyncio.create_task(self.process_reasoning_queue())
+        logger.info("libreagentengine: reflection scheduling has begun.")
 
-    def stop(self):
-        logger.info("libreagentengine: stopping reflection schedule...")
-        if self.scheduler_thread and self.scheduler_thread.is_alive():
-            self.stop_flag.set()
-            self.scheduler_thread.join()
-            schedule.clear()
-
-        self.working_memory.observers = []
-
-        logger.info("libreagentengine: fully stopped.")
+    async def _execute(self):
+        await asyncio.to_thread(self.working_memory.execute)
 
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
-            self.working_memory.execute()
-        elif memory['memory_type'] == 'internal' and memory['metadata'].get('role') == 'working_memory':
+            self._schedule_reflection(1)
+        elif memory['memory_type'] == 'internal' and memory['metadata'].get('temporal_scope') == 'working_memory':
             maybe_invoke_tool(memory, self.working_memory)
+
+    def _schedule_reflection(self, priority=1):
+        try:
+            self.reasoning_queue.put_nowait((priority, self._execute))
+        except asyncio.QueueFull:
+            logger.warning("Reasoning queue full, skipping scheduled reflection")
+
+    def stop(self):
+        self.stop_flag.set()
+        if self.async_task1:
+            self.async_task1.cancel()
+        if self.async_task2:
+            self.async_task2.cancel()
+        self.working_memory.observers = []
+        schedule.clear()
+        logger.info("libreagentengine: fully stopped.")
 
     async def persist(self, memory):
         metadata = memory.get('metadata', {})
@@ -109,8 +100,7 @@ class LibreAgentEngine:
 
         def _do_persist():
             memory_id = memory_graph.add_memory(
-                memory_type,
-                content,
+                memory_type, content,
                 metadata=metadata,
                 parent_memory_ids=memory.get('parent_memory_ids')
             )
