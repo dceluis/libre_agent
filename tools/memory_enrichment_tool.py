@@ -76,7 +76,9 @@ The tool analyzes existing memories to:
         related_memory_ids_list = []
         # Convert related_memory_ids from string to list
         if related_memory_ids:
-            related_memory_ids_list = [id.strip() for id in related_memory_ids.split(',')]
+            # Remove brackets if present and split by comma
+            cleaned_ids = related_memory_ids.strip().strip('[]')
+            related_memory_ids_list = [id.strip() for id in cleaned_ids.split(',')]
 
         # Handle relationships
         if related_memory_ids_list and relationship_type:

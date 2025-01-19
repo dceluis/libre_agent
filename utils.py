@@ -45,7 +45,7 @@ def format_memories(memories):
         memory_id = entry['memory_id']
         memory_type = entry['memory_type']
         metadata = entry['metadata']
-        metadata_str = ', '.join(f"{k}={v}" for k, v in metadata.items())
+        metadata_str = ', '.join(f"{k}={str(v)}" for k, v in metadata.items())
         formatted += f"[{timestamp}] - ID: {memory_id} - {memory_type} - ({metadata_str}): {content}\n"
     return formatted.strip()
 

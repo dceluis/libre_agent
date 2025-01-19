@@ -58,36 +58,39 @@ class LibreAgentEngine:
         on a separate thread, so you don't need to orchestrate from outside.
         """
         schedule.clear()  # purge leftover tasks if re-run
-        global _scheduled_reflection_counter
-        _scheduled_reflection_counter = 0
 
         gcd_val = math.gcd(self.deep_schedule, self.quick_schedule)
-        schedule.every(gcd_val).minutes.do(
-            _run_reflection, self.quick_schedule, self.deep_schedule, self.working_memory
-        )
 
-        self.stop_flag.clear()
-        self.scheduler_thread = threading.Thread(
-            target=_scheduler_loop,
-            args=(self.stop_flag,),
-            daemon=True
-        )
-        self.scheduler_thread.start()
+        if gcd_val > 0:
+            global _scheduled_reflection_counter
+            _scheduled_reflection_counter = 0
+
+            schedule.every(gcd_val).minutes.do(
+                _run_reflection, self.quick_schedule, self.deep_schedule, self.working_memory
+            )
+
+            self.stop_flag.clear()
+            self.scheduler_thread = threading.Thread(
+                target=_scheduler_loop,
+                args=(self.stop_flag,),
+                daemon=True
+            )
+            self.scheduler_thread.start()
+
+            logger.info("libreagentengine: reflection scheduling has begun.")
 
         self.working_memory.register_observer(self.reflex)
         self.working_memory.register_observer(self.persist)
 
-        logger.info("libreagentengine: reflection scheduling has begun.")
-
     def stop(self):
-        """
-        stops the schedule thread and clears tasks.
-        """
         logger.info("libreagentengine: stopping reflection schedule...")
         if self.scheduler_thread and self.scheduler_thread.is_alive():
             self.stop_flag.set()
             self.scheduler_thread.join()
             schedule.clear()
+
+        self.working_memory.observers = []
+
         logger.info("libreagentengine: fully stopped.")
 
     async def reflex(self, memory):
@@ -102,6 +105,7 @@ class LibreAgentEngine:
         content = memory.get('content')
 
         role = metadata.get('role')
+        temporal_scope = metadata.get('temporal_scope')
 
         def _do_persist():
             memory_id = memory_graph.add_memory(
@@ -115,7 +119,7 @@ class LibreAgentEngine:
 
         if memory_type == 'external':
             _do_persist()
-        elif memory_type == 'internal' and role != 'working_memory':
+        elif memory_type == 'internal' and temporal_scope != 'working_memory':
             _do_persist()
         else:
             logger.warning(f'Memory not persisted: type={memory_type}, content={content}, metadata={metadata}')

@@ -10,7 +10,7 @@ class MemoryTool:
 Use this tool to add a memory to the system.
 
 Parameters:
-- temporal_scope: 'short_term' or 'long_term'
+- temporal_scope: 'working_memory', 'short_term' or 'long_term'
 - role:
   - 'reflection' (typically short_term, ephemeral self-observations)
   - 'episodic' (long_term, personal experiences/events)
@@ -18,8 +18,8 @@ Parameters:
   - 'procedural' (long_term, skills/instructions)
 
 Guidelines:
-- 'reflection' memories replace the old generic internal reflections, and are usually short_term.
-- if in doubt, store ephemeral updates as short_term 'reflection' and more permanent data as long_term with the relevant scope.
+- 'reflection' memories are usually short_term.
+- if in doubt, store ephemeral updates as working_memory 'reflection' and more permanent data as long_term with the relevant scope.
 
     </description>
     <parameters>

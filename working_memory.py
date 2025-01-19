@@ -36,7 +36,10 @@ class WorkingMemory:
             metadata = {}
 
         if metadata.get('role') is None:
-            metadata['role'] = 'working_memory'
+            metadata['role'] = 'reflection'
+
+        if metadata.get('temporal_scope') is None:
+            metadata['temporal_scope'] = 'working_memory'
 
         # UPDATE: 01/08/2025
         # we are not adding the memories to the memory graph by default

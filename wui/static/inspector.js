@@ -57,7 +57,7 @@ function displayMemories(memories) {
         for (const [key, value] of Object.entries(mem.metadata)) {
             const metadataItem = document.createElement("span");
             metadataItem.classList.add("metadata-item");
-            metadataItem.textContent = `${key}: ${value}`;
+            metadataItem.textContent = `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`;
             footer.appendChild(metadataItem);
         }
 
