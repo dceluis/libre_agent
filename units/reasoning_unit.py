@@ -10,8 +10,9 @@ from utils import get_world_state_section, format_memories
 class ReasoningUnit():
     unit_name = "Reasoning Unit"
 
-    def __init__(self):
+    def __init__(self, model_name='gemini/gemini-2.0-flash-exp'):
         super().__init__()
+        self.model_name = model_name
         self.personality_traits = self.load_personality_traits()
 
     def load_personality_traits(self):
@@ -187,7 +188,7 @@ Available tools:
             logger.debug(f"Quick Instruction:\n{instruction}")
 
             completion_response = completion(
-                model="gemini/gemini-2.0-flash-exp",
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "assistant", "content": assistant_prompt},
@@ -259,7 +260,7 @@ Available tools:
             logger.debug(f"Deep Instruction:\n{instruction}")
 
             completion_response = completion(
-                model="gemini/gemini-2.0-flash-exp",
+                model=self.model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "assistant", "content": assistant_prompt},

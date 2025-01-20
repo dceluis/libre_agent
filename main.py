@@ -83,11 +83,12 @@ class PromptToolkitChatInterface:
         else:
             print_func()
 
-async def main(deep_schedule, quick_schedule, print_internals, memory_graph_file):
+async def main(deep_schedule, quick_schedule, print_internals, memory_graph_file, reasoning_model):
     engine = LibreAgentEngine(
         deep_schedule=deep_schedule,
         quick_schedule=quick_schedule,
-        memory_graph_file=memory_graph_file
+        memory_graph_file=memory_graph_file,
+        reasoning_model=reasoning_model
     )
 
     working_memory = engine.working_memory
@@ -109,6 +110,7 @@ if __name__ == "__main__":
     parser.add_argument('--quick-schedule', type=int, default=5, help='quick reflection schedule in minutes')
     parser.add_argument('--print-internals', action='store_true', help='print internal memories')
     parser.add_argument('--memory-graph-file', type=str, default=None, help='path to custom memory graph file')
+    parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp", help='Model to use for reasoning (default: gemini/gemini-2.0-flash-exp)')
     args = parser.parse_args()
 
-    asyncio.run(main(args.deep_schedule, args.quick_schedule, args.print_internals, args.memory_graph_file))
+    asyncio.run(main(args.deep_schedule, args.quick_schedule, args.print_internals, args.memory_graph_file, args.reasoning_model))  # Updated call

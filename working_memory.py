@@ -3,7 +3,6 @@ import time
 import asyncio
 from logger import logger
 from collections import deque
-from units.reasoning_unit import ReasoningUnit
 
 class WorkingMemory:
     def __init__(self):
@@ -148,16 +147,6 @@ class WorkingMemory:
         if memories:
             return memories[0]['content']
         return None
-
-    def execute(self, mode='quick'):
-        unit = ReasoningUnit()
-
-        logger.info(f"Executing ReasoningUnit")
-        try:
-            unit.reason(self, mode)
-            logger.info(f"ReasoningUnit succeeded")
-        except Exception as e:
-            logger.error(f"ReasoningUnit failed: {e}")
 
 class WorkingMemoryAsync(WorkingMemory):
     def __init__(self) -> None:

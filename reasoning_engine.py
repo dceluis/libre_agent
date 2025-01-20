@@ -9,12 +9,14 @@ from logger import logger
 from utils import load_units, load_tools, maybe_invoke_tool
 from recall_recognizer import RecallRecognizer
 from forget_recognizer import ForgetRecognizer
+from units.reasoning_unit import ReasoningUnit
 
 class LibreAgentEngine:
-    def __init__(self, deep_schedule=10, quick_schedule=5, memory_graph_file=None):
+    def __init__(self, deep_schedule=10, quick_schedule=5, memory_graph_file=None, reasoning_model="gemini/gemini-2.0-flash-exp"):
         self.deep_schedule = deep_schedule
         self.quick_schedule = quick_schedule
         self.memory_graph_file = memory_graph_file
+        self.reasoning_model = reasoning_model
 
         if self.memory_graph_file:
             memory_graph.set_graph_file_path(self.memory_graph_file)
@@ -70,7 +72,14 @@ class LibreAgentEngine:
     def _execute(self, mode='quick'):
         self._recall(mode)
 
-        self.working_memory.execute(mode)
+        unit = ReasoningUnit(model_name=self.reasoning_model)
+
+        logger.info(f"Executing ReasoningUnit")
+        try:
+            unit.reason(self.working_memory, mode)
+            logger.info(f"ReasoningUnit succeeded")
+        except Exception as e:
+            logger.error(f"ReasoningUnit failed: {e}")
 
         self._forget(mode)
 
@@ -82,7 +91,6 @@ class LibreAgentEngine:
 
     def _schedule_reflection(self, priority=1, mode='quick'):
         async def _perform_reflection():
-            # Then execute the working memory
             await asyncio.to_thread(self._execute, mode)
 
         try:

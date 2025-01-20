@@ -90,17 +90,6 @@ async def handle_messages(message: Message):
         # Add user message to working memory
         working_memory.add_interaction("user", message.text)
 
-        # # Register response handler for direct replies
-        # async def handle_response(memory):
-        #     if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
-        #         await message.reply(memory['content'], parse_mode=ParseMode.MARKDOWN)
-        #
-        # # Register temporary observer for this interaction
-        # working_memory.register_observer(handle_response)
-
-        # Execute reasoning
-        # working_memory.execute()
-
     except Exception as e:
         logger.error(f"Error handling message: {e}")
         await message.reply("Sorry, I encountered an error while processing your message.")
