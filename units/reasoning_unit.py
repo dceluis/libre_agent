@@ -75,64 +75,65 @@ You reflect on past memories, actions, and interactions
 You maintain and achieve system goals through continuous analysis
 You process relevant memories provided by secondary units before each reflection
 
-Memory Management Responsibilities:
+Main Responsibilities:
 
-1. Active Memory Cleanup
+1. Essential Memory Preservation
 
-Remove redundant standby messages and status updates
-Clean up completed task acknowledgments
-Consolidate repetitive state observations
-Remove ephemeral reflections that don't advance goals
-
-
-2. Memory Preservation
-
-Keep all user interactions and responses
-Preserve task-relevant insights and decision rationales
 Maintain important context-building memories
-Save unique observations and system improvements
+Only store important, unique and distilled information to stay within memory constraints.
+Prefer updating old procedural memories over creating new ones
 
+2. Agressive Memory Cleanup
 
-3. Core Memory Maintenance
+Maintain the system's number of stored memories to a MAXIMUM of 100 memories
+You will do everything in your power to ENSURE the number of memories DOES NOT
+exceed a 100 memories, including but not limited to:
 
-Update and refine high-level goals
-Maintain essential operational objectives
-Track evolving system priorities
-Link related memories meaningfully
-
+Deleting message memories older than a day
+Deleting short term reflection memories and observations
+Replacing them with consolidated versions that preserve only the most essential information
+Updating procedural memories to include up-to-date information or exclude stale
+information.
 
 Memory Value Assessment:
 
-High Value: User interactions, goal progress, unique insights
-Medium Value: Context builders, decision explanations, task tracking
-Low Value: Routine status updates, standby messages, task acknowledgments
-Zero Value: Redundant reflections, repetitive state observations
+High Value: Consolidated goals and objectives, recent messages
+Medium Value: Consolidated conversations, consolidated reflections
+Low Value: Old messages, unique insights
+Zero Value: Internal reflections, repetitive memories, reflections and procedures
 
 Operating Guidelines:
 
-Base decisions on stored facts and prior reflections
-Construct reflections as part of a continuous narrative
+Prioritize memory cleanup over excessive memory preservation
+Going over the memory storage contraints will degrade the system's operations
+Update and refine high-level goals
+Base decisions on stored facts, memories and the current world state
 Follow user objectives and system goals
 Use tools as your primary means of interaction
 Remember that actions aren't immediate - use tools for all interactions with the world and the system
-Only use available tools - attempting unavailable tools will fail
-Keep system overviews and reasoning internal unless specifically needed
-
-Context Understanding:
-
-You receive relevant memories and current world state before each reflection
-You work with summaries rather than complete memory sets
-Your context includes system goals, personality traits, and memory highlights
-You can see which memories are persisted for long-term storage
 
 Tools Interface:
 
-Use tools through specific XML syntax
-Follow each tool's guidelines precisely
-Multiple tools can be used together
+Use tools through the specific XML syntax:
+
+<tools>
+    <tool>
+        <name>...</name>
+        <parameters>
+            <parameter>
+                <name>...</name>
+                <value>...</value>
+            </parameter>
+        </parameters>
+    </tool>
+    ...
+</tools>
+
+Multiple tools can and should be used together
 Tools are your only way to affect the system
 
-This framework ensures you maintain effective reasoning capabilities while actively managing memory hygiene. Focus on meaningful contributions to the system's goals while preventing memory pollution from routine operations.
+This framework ensures you maintain effective reasoning capabilities while actively managing memory hygiene.
+Focus on meaningful contributions to the system's goals while preventing memory pollution.
 
 System tools:
 {self.describe_tools()}
@@ -144,9 +145,7 @@ System tools:
             return
 
         # Gather recent memories for emotional continuity
-        recent_memories = working_memory.get_memories(last=10)
-        # Exclude recalled memories
-        recent_memories = [mem for mem in recent_memories if mem['metadata'].get('recalled', False) != True]
+        recent_memories = working_memory.get_memories(last=25, metadata={'recalled': [False, None]})
 
         recalled_memories = working_memory.get_memories(metadata={'recalled': True})
 
@@ -167,9 +166,10 @@ Personality Traits:
 Recalled Memories:
 {formatted_recalled}
 
-Recent Memories:
+Working Memory:
 {formatted_recent}
 
+You are currently operating in quick mode.
 """
 
         instruction = f"""
@@ -177,22 +177,7 @@ Observe the world state presented, including recent interactions, memories and a
 
 Reflect on these to decide your next action(s).
 
-You may use one or more tools through the syntax:
-
-<tools>
-    <tool>
-        <name>...</name>
-        <parameters>
-            <parameter>
-                <name>...</name>
-                <value>...</value>
-            </parameter>
-        </parameters>
-    </tool>
-    ...
-</tools>
-
-from the following list of available tools:
+Available tools:
 {self.allowed_tools('quick')}
 """
 
@@ -218,7 +203,7 @@ from the following list of available tools:
                 memory_type = 'internal',
                 content = reflection_text,
                 metadata = {
-                    'role': 'working_memory',
+                    'role': 'reflection',
                     'unit_name': 'reasoning_unit'
                 }
             )
@@ -234,7 +219,8 @@ from the following list of available tools:
 
         try:
             # Get some recent external memories
-            recent_memories = memory_graph.get_memories(last=20)
+            recent_memories = working_memory.get_memories(last=50, metadata={'recalled': [False, None]})
+
             recalled_memories = working_memory.get_memories(metadata={'recalled': True})
 
             formatted_recent = format_memories(recent_memories)
@@ -254,7 +240,7 @@ Personality Traits:
 Recalled Memories:
 {formatted_recalled}
 
-Recent Memories:
+Working Memory:
 {formatted_recent}
 
 You are currently operating in deep mode.
@@ -265,22 +251,7 @@ Observe the world state presented, including recent interactions, memories and a
 
 Reflect on these to decide your next action(s).
 
-You may use one or more tools through the syntax:
-
-<tools>
-    <tool>
-        <name>...</name>
-        <parameters>
-            <parameter>
-                <name>...</name>
-                <value>...</value>
-            </parameter>
-        </parameters>
-    </tool>
-    ...
-</tools>
-
-from the following list of available tools:
+Available tools:
 {self.allowed_tools('deep')}
 """
             logger.debug(f"System prompt:\n{system_prompt}")
@@ -304,7 +275,7 @@ from the following list of available tools:
                 memory_type = 'internal',
                 content = analysis,
                 metadata = {
-                    'role': 'working_memory',
+                    'role': 'reflection',
                     'unit_name': 'reasoning_unit'
                 }
             )

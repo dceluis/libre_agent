@@ -4,6 +4,7 @@ import importlib
 import time
 from pathlib import Path
 from logger import logger
+from memory_graph import memory_graph
 import re
 from tool_registry import ToolRegistry
 
@@ -31,8 +32,14 @@ def load_tools():
 
 def get_world_state_section():
     current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    stats = memory_graph.get_stats()
     world_state = f"""
 - **Current Time**: {current_time}
+- **Memory Statistics**:
+  - Total Memories: {stats['total_memories']}{f" ({stats['total_memories'] - 100} over the limit of 100)" if stats['total_memories'] > 100 else ""}
+  - Total Connections: {stats['total_connections']}
+  - Memory Types: {', '.join(f'{k}: {v}' for k, v in stats['memory_type_distribution'].items())}
+  - Roles: {', '.join(f'{k}: {v}' for k, v in stats['role_distribution'].items())}
 """
     return world_state
 
@@ -46,7 +53,7 @@ def format_memories(memories):
         memory_type = entry['memory_type']
         metadata = entry['metadata']
         metadata_str = ', '.join(f"{k}={str(v)}" for k, v in metadata.items())
-        formatted += f"[{timestamp}] - ID: {memory_id} - {memory_type} - ({metadata_str}): {content}\n"
+        formatted += f"[{timestamp}] [ID: {memory_id}] - {memory_type} - ({metadata_str}): {content}\n"
     return formatted.strip()
 
 def maybe_invoke_tool(memory, working_memory):
@@ -58,6 +65,7 @@ def maybe_invoke_tool(memory, working_memory):
         re.DOTALL
     )
     if tools_match and working_memory is not None:
+        results = []
         for tool_name, tool_params_block in tools_match:
             tool = next((t for t in ToolRegistry.tools if t['name'] == tool_name), None)
             if tool:
@@ -93,4 +101,14 @@ def maybe_invoke_tool(memory, working_memory):
 
                 logger.warning(result_msg)
 
-            working_memory.add_memory("internal", result_msg, metadata={'unit_name': 'ReasoningEngine'})
+            results.append(result_msg)
+
+        if results:
+            combined_result = "\n".join(results)
+            working_memory.add_memory(
+                "internal", combined_result,
+                metadata={
+                    'unit_name': 'ReasoningEngine',
+                    'role': 'tools_result'
+                }
+            )

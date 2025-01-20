@@ -2,6 +2,7 @@ from litellm import completion
 import re
 from memory_graph import memory_graph
 from logger import logger
+from utils import format_memories
 
 class RecallRecognizer:
 
@@ -55,6 +56,13 @@ You are an expert in recalling memories from an extensive database, populating
 the system's working memory with relevant information that will advance the
 conversation.
 
+Prioritize retrieval based on the following recall priority:
+- CORE (5): Critical system operation, always needs to be accessible
+- HIGH (4): Important but not system-critical
+- MEDIUM (3): Regularly useful
+- LOW (2): Occasionally relevant
+- BACKGROUND (1): Rarely needed but worth keeping
+
 Examples:
 
 USER: "what is the name of the person I met last week?"
@@ -74,16 +82,12 @@ The user prompt is:
 Below is a list of previous memories, each with an id and content. Decide which memories are relevant:
 
 Memories:
-"""
-        for mem in memories:
-            memory_id = mem['memory_id']
-            role = mem['metadata'].get('role', 'N/A')
-            content = mem['content']
-            constructed_prompt += f"Memory ID: {memory_id}\nRole: {role}\nContent: {content}\n\n"
+{format_memories(memories)}
 
-        constructed_prompt += """
-Return a comma-separated list of 0 or more memory ids that are relevant to the
-user prompt. If no memories are relevant, return an empty list.
+Return a comma-separated list memory ids that are relevant to the user prompt.
+Return a minimum of 0 memories and a maximum of 10 memories
+
+If no memories are relevant, return an empty list.
 """
         return constructed_prompt
 

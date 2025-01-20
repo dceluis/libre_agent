@@ -106,6 +106,17 @@ class MemoryGraph:
     #     logger.info(f"Updated memory {memory_id} with attributes: {kwargs}")
     #     self.save_graph()
 
+    def remove_memory(self, memory_id):
+        with self._lock:
+            if memory_id not in self.graph:
+                logger.warning(f"Attempted to remove non-existent memory: {memory_id}")
+                return False
+
+            self.graph.remove_node(memory_id)
+            logger.info(f"Removed memory {memory_id} and its associated edges")
+            self.save_graph()
+            return True
+
     def get_all_memories(self):
         result = [ {'memory_id': node, **data} for node, data in self.graph.nodes(data=True) ]
         logger.info(f"get_all_memories called. Returned {len(result)} memories.")
@@ -142,6 +153,27 @@ class MemoryGraph:
             f"Found {len(result)} memories: {memory_ids}"
         )
         return result
+
+    def get_stats(self):
+        """Return statistics about the memory graph"""
+        stats = {
+            'total_memories': self.graph.number_of_nodes(),
+            'total_connections': self.graph.number_of_edges(),
+            'memory_type_distribution': {},
+            'role_distribution': {}
+        }
+
+        # Calculate memory type distribution
+        for node, data in self.graph.nodes(data=True):
+            mem_type = data.get('memory_type', 'unknown')
+            stats['memory_type_distribution'][mem_type] = stats['memory_type_distribution'].get(mem_type, 0) + 1
+
+            # Calculate role distribution
+            role = data.get('metadata', {}).get('role', 'unknown')
+            stats['role_distribution'][role] = stats['role_distribution'].get(role, 0) + 1
+
+        logger.info(f"Generated memory graph statistics: {stats}")
+        return stats
 
 def setup_memory_graph():
     return MemoryGraph()
