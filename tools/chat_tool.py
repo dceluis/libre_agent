@@ -36,6 +36,18 @@ Style guide:
             <description>The content of the message.</description>
             <type>string</type>
             <required>True</required>
+        </parameter>
+        <parameter>
+            <name>parse_mode</name>
+            <description>
+Markdown parsing mode: 'markdown' or 'plaintext' (default).
+Only use markdown if you can ensure proper formatting.
+            </description>
+            <type>string</type>
+            <required>False</required>
+            <default>plaintext</default>
+            <options>markdown,plaintext</options>
+        </parameter>
     </parameters>
 </tool>
 """
@@ -43,14 +55,17 @@ Style guide:
     def __init__(self, working_memory):
         self.working_memory = working_memory
 
-    def run(self, unit_name, content, **kwargs):
+    def run(self, unit_name, content, parse_mode='plaintext', **kwargs):
         if content:
             logger.info(f"Content provided: {content}")
 
             self.working_memory.add_interaction(
                 'assistant',
                 content,
-                metadata={'unit_name': unit_name}
+                metadata={
+                    'unit_name': unit_name,
+                    'parse_mode': parse_mode
+                }
             )
 
             return True

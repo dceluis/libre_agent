@@ -68,12 +68,13 @@ You are an advanced image decription module.
             )
 
             analysis = analysis['choices'][0]['message']['content'].strip()
-            logger.info("Screenshot analyzed successfully.")
-            return analysis
 
+            logger.info("Screenshot analyzed successfully.")
+
+            return True
         except Exception as e:
             logger.error(f"PeekTool error: {e}\n{traceback.format_exc()}")
-            return None
+            return False
 
 # Register the tool
 ToolRegistry.register_tool(PeekTool)

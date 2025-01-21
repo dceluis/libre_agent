@@ -26,20 +26,65 @@ bot = None
 config = {
     'deep_schedule': 10,
     'quick_schedule': 5,
-    'memory_graph_file': None
+    'memory_graph_file': None,
+    'reasoning_model': 'gemini/gemini-2.0-flash-exp'
 }
 
-async def send_message(chat_id: int, text: str):
+async def send_message(chat_id: int, text: str, parse_mode: str = 'plaintext'):
     """Utility function to send proactive messages"""
     try:
-        if bot is not None:
+        if bot is None:
+            return
+
+        # First attempt with specified parse mode
+        if parse_mode == 'markdown':
+            try:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except Exception as md_error:
+            # If markdown parse failed, retry as plaintext
+                logger.warning(f"Markdown parse failed, retrying as plaintext: {md_error}")
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode=None
+                )
+        else:
             await bot.send_message(
                 chat_id=chat_id,
                 text=text,
-                parse_mode=ParseMode.MARKDOWN
+                parse_mode=None
             )
+
     except Exception as e:
         logger.error(f"Error sending proactive message to chat {chat_id}: {e}")
+
+def register_engine(chat_id: int):
+    """Register a new engine for a chat"""
+    engine = LibreAgentEngine(
+        deep_schedule=config['deep_schedule'],
+        quick_schedule=config['quick_schedule'],
+        memory_graph_file=f"{config['memory_graph_file']}_{chat_id}" if config['memory_graph_file'] else None,
+        reasoning_model=config['reasoning_model']
+    )
+
+    # Register observer for proactive messages
+    async def proactive_handler(memory):
+        if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
+            await send_message(
+                chat_id,
+                memory['content'],
+                memory['metadata'].get('parse_mode', 'plaintext')
+            )
+
+    engine.working_memory.register_observer(proactive_handler)
+    engine.start()
+    chat_engines[chat_id] = engine
+
+    return engine
 
 @router.message(F.text == "/start")
 async def send_welcome(message: Message):
@@ -48,20 +93,7 @@ async def send_welcome(message: Message):
 
     # Initialize a new engine for this chat if it doesn't exist
     if message.chat.id not in chat_engines:
-        engine = LibreAgentEngine(
-            deep_schedule=config['deep_schedule'],
-            quick_schedule=config['quick_schedule'],
-            memory_graph_file=f"{config['memory_graph_file']}_{message.chat.id}" if config['memory_graph_file'] else None
-        )
-
-        # Register observer for proactive messages
-        async def proactive_handler(memory):
-            if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
-                await send_message(message.chat.id, memory['content'])
-
-        engine.working_memory.register_observer(proactive_handler)
-        engine.start()
-        chat_engines[message.chat.id] = engine
+        register_engine(message.chat.id)
 
 @router.message()
 async def handle_messages(message: Message):
@@ -69,22 +101,10 @@ async def handle_messages(message: Message):
     try:
         # Get or create chat-specific engine
         if message.chat.id not in chat_engines:
-            engine = LibreAgentEngine(
-                deep_schedule=config['deep_schedule'],
-                quick_schedule=config['quick_schedule'],
-                memory_graph_file=f"{config['memory_graph_file']}_{message.chat.id}" if config['memory_graph_file'] else None
-            )
+            engine = register_engine(message.chat.id)
+        else:
+            engine = chat_engines[message.chat.id]
 
-            # Register observer for proactive messages
-            async def proactive_handler(memory):
-                if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
-                    await send_message(message.chat.id, memory['content'])
-
-            engine.working_memory.register_observer(proactive_handler)
-            engine.start()
-            chat_engines[message.chat.id] = engine
-
-        engine = chat_engines[message.chat.id]
         working_memory = engine.working_memory
 
         # Add user message to working memory
@@ -97,19 +117,18 @@ async def handle_messages(message: Message):
 async def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="LibreAgent Telegram Bot")
-    parser.add_argument('--deep-schedule', type=int, default=10,
-                      help='Deep reflection schedule in minutes')
-    parser.add_argument('--quick-schedule', type=int, default=5,
-                      help='Quick reflection schedule in minutes')
-    parser.add_argument('--memory-graph-file', type=str,
-                      help='Base path for memory graph files')
+    parser.add_argument('--deep-schedule', type=int, default=10, help='Deep reflection schedule in minutes')
+    parser.add_argument('--quick-schedule', type=int, default=5, help='Quick reflection schedule in minutes')
+    parser.add_argument('--memory-graph-file', type=str, help='Base path for memory graph files')
+    parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
     args = parser.parse_args()
 
     # Update config
     config.update({
         'deep_schedule': args.deep_schedule,
         'quick_schedule': args.quick_schedule,
-        'memory_graph_file': args.memory_graph_file
+        'memory_graph_file': args.memory_graph_file,
+        'reasoning_model': args.reasoning_model
     })
 
     # Initialize bot and dispatcher
@@ -123,7 +142,8 @@ async def main():
     # Start polling
     logger.info(f"Starting bot with deep_schedule={config['deep_schedule']}, "
                 f"quick_schedule={config['quick_schedule']}, "
-                f"memory_graph_file={config['memory_graph_file']}")
+                f"memory_graph_file={config['memory_graph_file']}, "
+                f"reasoning_model={config['reasoning_model']}")
 
     try:
         await dp.start_polling(bot)

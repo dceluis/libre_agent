@@ -32,6 +32,8 @@ class LibreAgentEngine:
         self.async_task1 = None
         self.async_task2 = None
 
+        logger.info(f"libreagentengine: initialized with deep_schedule={deep_schedule}, quick_schedule={quick_schedule}, reasoning_model={reasoning_model}")
+
     async def schedule_reasoning_queue(self):
         while not self.stop_flag.is_set():
             schedule.run_pending()
@@ -76,8 +78,11 @@ class LibreAgentEngine:
 
         logger.info(f"Executing ReasoningUnit")
         try:
-            unit.reason(self.working_memory, mode)
+            analysis = unit.reason(self.working_memory, mode)
             logger.info(f"ReasoningUnit succeeded")
+            # logger.warning(f"Analysis: {analysis}")
+            if analysis:
+                maybe_invoke_tool(analysis, self.working_memory)
         except Exception as e:
             logger.error(f"ReasoningUnit failed: {e}")
 
@@ -86,8 +91,6 @@ class LibreAgentEngine:
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
             self._schedule_reflection(1)
-        elif memory['memory_type'] == 'internal' and memory['metadata'].get('role') == 'reflection' and memory['metadata'].get('temporal_scope') == 'working_memory':
-            maybe_invoke_tool(memory, self.working_memory)
 
     def _schedule_reflection(self, priority=1, mode='quick'):
         async def _perform_reflection():
@@ -127,12 +130,13 @@ class LibreAgentEngine:
 
         if memory_type == 'external':
             _do_persist()
-        elif memory_type == 'internal' and temporal_scope != 'working_memory':
+        elif memory_type == 'internal' and (temporal_scope == 'short_term' or temporal_scope == 'long_term'):
             _do_persist()
         else:
             logger.warning(f'Memory not persisted: type={memory_type}, content={content}, metadata={metadata}')
 
     def _recall(self, mode='quick'):
+        logger.debug("Starting recall process")
         exclude_ids = [m['memory_id'] for m in self.working_memory.memories]
         logger.debug(f"Excluding {len(exclude_ids)} existing memories from recall")
 
@@ -159,6 +163,7 @@ class LibreAgentEngine:
         logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.working_memory.id}")
 
     def _forget(self, mode='quick'):
+        logger.debug("Starting forget process")
         ephemeral_mems = self.working_memory.get_memories(metadata={'recalled': True})
         logger.debug(f"Found {len(ephemeral_mems)} ephemeral memories to check")
 
@@ -185,9 +190,9 @@ class LibreAgentEngine:
         new_nemories = []
         for mem in self.working_memory.memories:
             if mem['memory_id'] in pruned_ids:
-                logger.info(f"pruning memory {mem['memory_id']} from WM {self.working_memory.id}, used by assistant")
-                continue
-            new_nemories.append(mem)
+                logger.info(f"pruning memory {mem['memory_id']} from WM {self.working_memory.id}")
+            else:
+                new_nemories.append(mem)
 
         self.working_memory.memories = new_nemories
         logger.info(f"{len(pruned_ids)} memories pruned from WorkingMemory {self.working_memory.id}")

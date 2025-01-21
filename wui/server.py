@@ -6,7 +6,7 @@ import time
 from typing import List
 
 from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -14,10 +14,11 @@ from contextlib import asynccontextmanager
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Import necessary components from your existing codebase
 from reasoning_engine import LibreAgentEngine
 from memory_graph import memory_graph
+from logger import logger
 
+# Configuration defaults
 quick_schedule = 5
 deep_schedule = 10
 graph_file = None
@@ -27,26 +28,21 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), 't
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global graph_file
-    global deep_schedule
-    global quick_schedule
-
+    global graph_file, deep_schedule, quick_schedule, reasoning_model
+    
     engine = LibreAgentEngine(
         quick_schedule=quick_schedule,
         deep_schedule=deep_schedule,
-        memory_graph_file=graph_file
+        memory_graph_file=graph_file,
+        reasoning_model=reasoning_model
     )
-
-    working_memory = engine.working_memory
-
-    app.state.wm = working_memory
+    
     app.state.engine = engine
-
-    working_memory.register_observer(memory_callback)
+    app.state.wm = engine.working_memory
+    app.state.wm.register_observer(memory_callback)
+    
     engine.start()
-
     yield
-
     engine.stop()
 
 app = FastAPI(lifespan=lifespan)
@@ -70,63 +66,29 @@ def get_chat_history():
     ]
 
 @app.get("/", response_class=HTMLResponse)
-async def get_chat(request: Request):
+async def chat_interface(request: Request):
     chat_history = get_chat_history()
-    # you might add hx-websockets extension scripts here in the template
     return templates.TemplateResponse("chat.html", {"request": request, "messages": chat_history})
 
-@app.post("/send_message", response_class=HTMLResponse)
-async def send_message(request: Request, message: str = Form(...)):
-    timestamp = time.strftime('%H:%M:%S', time.localtime())
-    user_snippet = render_message_snippet(role="user", content=message, timestamp=timestamp)
-
+@app.post("/send_message")
+async def handle_message(message: str = Form(...)):
+    timestamp = time.strftime('%H:%M:%S')
+    user_snippet = render_message_snippet("user", message, timestamp)
     await broadcast_snippet(user_snippet)
 
     # generate + broadcast the assistant response
     app.state.wm.add_interaction("user", message)
 
-    # return the user snippet for immediate local insert
-    # return user_snippet
-
-@app.get("/memories", response_class=HTMLResponse)
-async def read_root():
-    template = templates.get_template("inspector.html")
-    return template.render()
-
-@app.get("/api/memories", response_class=JSONResponse)
-async def get_memories(request: Request):
-    try:
-        memories = memory_graph.get_memories(sort='timestamp', reverse=False)
-        formatted = [
-            {
-                "memory_id": mem['memory_id'],
-                "memory_type": mem['memory_type'],
-                "content": mem['content'],
-                "metadata": mem['metadata'],
-                "timestamp": mem['timestamp']
-            }
-            for mem in memories
-        ]
-        return {"memories": formatted, "graph_file": memory_graph.graph_file}
-    except Exception as e:
-        return {"error": str(e)}, 400
+    return HTMLResponse("")
 
 async def memory_callback(memory):
-    memory_type = memory['memory_type']
-    content = memory["content"]
-    role = memory["metadata"].get("role")
-    timestamp = time.strftime('%H:%M:%S', time.localtime(memory["timestamp"]))
-
-    if memory_type == 'external' and role == "assistant":
-        assistant_snippet = render_message_snippet(role="assistant", content=content, timestamp=timestamp)
-        await broadcast_snippet(assistant_snippet)
-    # elif memory_type == 'internal' and self.print_internals:
-    #     pass
-    else:
-        return
+    if memory['memory_type'] == 'external' and memory['metadata'].get('role') == "assistant":
+        timestamp = time.strftime('%H:%M:%S', time.localtime(memory["timestamp"]))
+        snippet = render_message_snippet("assistant", memory["content"], timestamp)
+        await broadcast_snippet(snippet)
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_handler(websocket: WebSocket):
     await websocket.accept()
     active_connections.append(websocket)
     try:
@@ -151,27 +113,22 @@ def render_message_snippet(role: str, content: str, timestamp: str) -> str:
     return oob_snippet
 
 async def broadcast_snippet(snippet: str):
-    # broadcast a partial html snippet to every ws connection
     for conn in active_connections:
         await conn.send_text(snippet)
 
 if __name__ == "__main__":
-    # Parse CLI arguments
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--graph-file", help="Path to the memory graph file", default=None)
-    parser.add_argument('--deep-schedule', type=int, default=10, help='deep reflection schedule in minutes')
-    parser.add_argument('--quick-schedule', type=int, default=5, help='quick reflection schedule in minutes')
-    parser.add_argument("--host", help="Host address to bind the server", default="0.0.0.0")
-    parser.add_argument("--port", help="Port number to bind the server", default=5000)
+    parser = argparse.ArgumentParser(description="Chat Interface Server")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--graph-file")
+    parser.add_argument("--deep-schedule", type=int, default=10)
+    parser.add_argument("--quick-schedule", type=int, default=5)
+    parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
 
     args = parser.parse_args()
-
-    if args.graph_file:
-        graph_file = args.graph_file
-    if args.quick_schedule:
-        quick_schedule = args.quick_schedule
-    if args.deep_schedule:
-        deep_schedule = args.deep_schedule
+    graph_file = args.graph_file
+    deep_schedule = args.deep_schedule
+    quick_schedule = args.quick_schedule
+    reasoning_model = args.reasoning_model
 
     uvicorn.run(app, host=args.host, port=args.port)

@@ -56,16 +56,14 @@ def format_memories(memories):
         formatted += f"[{timestamp}] [ID: {memory_id}] - {memory_type} - ({metadata_str}): {content}\n"
     return formatted.strip()
 
-def maybe_invoke_tool(memory, working_memory):
-    reflection_text = memory['content']
+def maybe_invoke_tool(reflection_text: str, working_memory):
     tools_match = re.findall(
 
-        r'<tool>\s*<name>([^<]+)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
+        r'<tool>\s*<name>(.*?)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
         reflection_text,
         re.DOTALL
     )
     if tools_match and working_memory is not None:
-        results = []
         for tool_name, tool_params_block in tools_match:
             tool = next((t for t in ToolRegistry.tools if t['name'] == tool_name), None)
             if tool:
@@ -89,7 +87,7 @@ def maybe_invoke_tool(memory, working_memory):
                     else:
                         result = tool_instance.run()
 
-                    result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}."
+                    result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}"
 
                     logger.info(result_msg)
                 except Exception as e:
@@ -100,15 +98,3 @@ def maybe_invoke_tool(memory, working_memory):
                 result_msg = f"Tool '{tool_name}' not available.",
 
                 logger.warning(result_msg)
-
-            results.append(result_msg)
-
-        if results:
-            combined_result = "\n".join(results)
-            working_memory.add_memory(
-                "internal", combined_result,
-                metadata={
-                    'unit_name': 'ReasoningEngine',
-                    'role': 'tools_result'
-                }
-            )

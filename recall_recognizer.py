@@ -3,6 +3,7 @@ import re
 from memory_graph import memory_graph
 from logger import logger
 from utils import format_memories
+import traceback
 
 class RecallRecognizer:
 
@@ -33,9 +34,23 @@ class RecallRecognizer:
                 ]
             )
 
-            logger.debug(f"[RecallRecognizer] completion_response: {completion_response}")
+            logger.debug(f"completion_response:\n{completion_response}")
 
             reply = completion_response['choices'][0]['message']['content'].strip()
+
+            input_tokens = completion_response['usage']['prompt_tokens']
+
+            output_tokens = completion_response['usage']['completion_tokens']
+
+            logger.info(
+                f"RecallRecognizer:\n{reply}",
+                extra={
+                    'tokens': {'input': input_tokens, 'output': output_tokens},
+                    'model': 'gemini-1.5-flash-8b',
+                    'step': 'recall_recognizer',
+                    'unit': 'reasoning_unit'
+                }
+            )
 
             # parse out memory ids
             memory_ids = self.parse_response(reply)
@@ -45,7 +60,7 @@ class RecallRecognizer:
 
             return filtered_memories
         except Exception as e:
-            logger.error(f"Error in RecallRecognizer: {e}")
+            logger.error(f"RecallRecognizer error: {e}\n{traceback.format_exc()}")
             return []
 
     def construct_system_prompt(self):

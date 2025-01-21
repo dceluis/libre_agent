@@ -29,7 +29,8 @@ class ReasoningUnit():
                     content=traits,
                     metadata={
                         'unit_name': self.unit_name,
-                        'role': 'personality'
+                        'role': 'personality',
+                        'priority_level': 'CORE',
                     },
                     parent_memory_ids=[]
                 )
@@ -98,10 +99,10 @@ information.
 
 Memory Value Assessment:
 
-High Value: Consolidated goals and objectives, recent messages
-Medium Value: Consolidated conversations, consolidated reflections
-Low Value: Old messages, unique insights
-Zero Value: Internal reflections, repetitive memories, reflections and procedures
+High Value: Consolidated goals and objectives. Recent conversations
+Medium Value: Consolidated conversations, consolidated reflections, unique insights and distilled information
+Low Value: Old messages
+Zero Value: Internal reflections. Repetitive memories, reflections and procedures
 
 Operating Guidelines:
 
@@ -110,6 +111,7 @@ Going over the memory storage contraints will degrade the system's operations
 Update and refine high-level goals
 Base decisions on stored facts, memories and the current world state
 Follow user objectives and system goals
+Tools are your only way to affect the system
 Use tools as your primary means of interaction
 Remember that actions aren't immediate - use tools for all interactions with the world and the system
 
@@ -131,7 +133,6 @@ Use tools through the specific XML syntax:
 </tools>
 
 Multiple tools can and should be used together
-Tools are your only way to affect the system
 
 This framework ensures you maintain effective reasoning capabilities while actively managing memory hygiene.
 Focus on meaningful contributions to the system's goals while preventing memory pollution.
@@ -140,88 +141,31 @@ System tools:
 {self.describe_tools()}
 """
 
-    def quick_reflection(self, working_memory):
+    def _reflect(self, working_memory, mode):
         if not working_memory:
             logger.error(f"No internal WorkingMemory for ReasoningUnit")
             return
 
-        # Gather recent memories for emotional continuity
-        recent_memories = working_memory.get_memories(last=25, metadata={'recalled': [False, None]})
-
-        recalled_memories = working_memory.get_memories(metadata={'recalled': True})
-
-        formatted_recent = format_memories(recent_memories)
-        formatted_recalled = format_memories(recalled_memories)
-
-        system_prompt = self.build_unified_system_prompt(working_memory)
-
-        assistant_prompt = f"""
-[Context]
-
-Environment:
-{get_world_state_section()}
-
-Personality Traits:
-{self.personality_traits}
-
-Recalled Memories:
-{formatted_recalled}
-
-Working Memory:
-{formatted_recent}
-
-You are currently operating in quick mode.
-"""
-
-        instruction = f"""
-Observe the world state presented, including recent interactions, memories and actions.
-
-Reflect on these to decide your next action(s).
-
-Available tools:
-{self.allowed_tools('quick')}
-"""
+        # Mode-specific configurations
+        config = {
+            'quick': {
+                'max_memories': 25,
+                'step_name': 'quick_reflection',
+                'instruction_note': "quick mode - focus on immediate actions"
+            },
+            'deep': {
+                'max_memories': 50,
+                'step_name': 'deep_reflection',
+                'instruction_note': "deep mode - comprehensive analysis"
+            }
+        }.get(mode, {})
 
         try:
-            logger.debug(f"System prompt:\n{system_prompt}")
-            logger.debug(f"Asst. prompt:\n{assistant_prompt}")
-            logger.debug(f"Quick Instruction:\n{instruction}")
-
-            completion_response = completion(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "assistant", "content": assistant_prompt},
-                    {"role": "user", "content": instruction}
-                ]
+            # Retrieve memories based on mode
+            recent_memories = working_memory.get_memories(
+                last=config['max_memories'],
+                metadata={'recalled': [False, None]}
             )
-
-            logger.debug(f"Completion response: {completion_response}")
-
-            reflection_text = completion_response['choices'][0]['message']['content'].strip()
-
-            working_memory.add_memory(
-                memory_type = 'internal',
-                content = reflection_text,
-                metadata = {
-                    'role': 'reflection',
-                    'unit_name': 'reasoning_unit'
-                }
-            )
-        except Exception as e:
-            logger.error(f"Error in quick_reflection (ReasoningUnit): {e}\n{traceback.format_exc()}")
-
-        return None  # Typically no direct response to user here
-
-    def deeper_reflection(self, working_memory):
-        if not working_memory:
-            logger.error(f"No internal WorkingMemory for ReasoningUnit")
-            return
-
-        try:
-            # Get some recent external memories
-            recent_memories = working_memory.get_memories(last=50, metadata={'recalled': [False, None]})
-
             recalled_memories = working_memory.get_memories(metadata={'recalled': True})
 
             formatted_recent = format_memories(recent_memories)
@@ -229,11 +173,12 @@ Available tools:
 
             system_prompt = self.build_unified_system_prompt(working_memory)
 
-            assistant_prompt = f"""
+            instruction = f"""
 [Context]
 
 Environment:
 {get_world_state_section()}
+Operating Mode: {config['instruction_note']}
 
 Personality Traits:
 {self.personality_traits}
@@ -244,47 +189,51 @@ Recalled Memories:
 Working Memory:
 {formatted_recent}
 
-You are currently operating in deep mode.
+Analyze the current situation and determine appropriate actions using:
+{self.allowed_tools(mode)}
 """
 
-            instruction = f"""
-Observe the world state presented, including recent interactions, memories and actions.
-
-Reflect on these to decide your next action(s).
-
-Available tools:
-{self.allowed_tools('deep')}
-"""
             logger.debug(f"System prompt:\n{system_prompt}")
-            logger.debug(f"Asst. prompt:\n{assistant_prompt}")
-            logger.debug(f"Deep Instruction:\n{instruction}")
+            logger.debug(f"{mode.capitalize()} Reflection Instruction:\n{instruction}")
 
-            completion_response = completion(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "assistant", "content": assistant_prompt},
-                    {"role": "user", "content": instruction}
-                ]
-            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": instruction}
+            ]
+
+            completion_response = completion(model=self.model_name, messages=messages)
 
             logger.debug(f"Completion response: {completion_response}")
 
-            analysis = completion_response['choices'][0]['message']['content'].strip()
+            reflection_text = completion_response['choices'][0]['message']['content'].strip()
 
-            working_memory.add_memory(
-                memory_type = 'internal',
-                content = analysis,
-                metadata = {
-                    'role': 'reflection',
-                    'unit_name': 'reasoning_unit'
+            # Get input tokens
+            input_tokens = completion_response['usage']['prompt_tokens']
+
+            # Get output tokens
+            output_tokens = completion_response['usage']['completion_tokens']
+
+            logger.info(
+                f"{mode.capitalize()} reflection completed:\n{reflection_text}",
+                extra={
+                    'tokens': { 'input': input_tokens, 'output': output_tokens },
+                    'model': self.model_name,
+                    'step': config['step_name'],
+                    'unit': 'reasoning_unit'
                 }
             )
 
-        except Exception as e:
-            logger.error(f"Error in deeper_reflection (ReasoningUnit): {e}\n{traceback.format_exc()}")
+            return reflection_text
 
-        return None
+        except Exception as e:
+            logger.error(f"Error in {mode}_reflection: {e}\n{traceback.format_exc()}")
+            return None
+
+    def quick_reflection(self, working_memory):
+        return self._reflect(working_memory, mode='quick')
+
+    def deeper_reflection(self, working_memory):
+        return self._reflect(working_memory, mode='deep')
 
     def describe_tools(self):
         available_tools = ToolRegistry.get_tools('deep')

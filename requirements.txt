@@ -5,6 +5,7 @@ colorama==0.4.6       # If using colorama
 pytest==7.2.0
 pytest-mock==3.10.0
 litellm==1.55.9
+python-json-logger==2.0.7
 
 # web ui
 fastapi
@@ -12,8 +13,12 @@ uvicorn
 websockets
 python-multipart
 
-# cmd line 
+# cmd line
 prompt_toolkit
 
 # telegram
 aiogram
+
+# logs
+datasette
+datasette-vega

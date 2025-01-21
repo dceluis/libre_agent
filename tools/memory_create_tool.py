@@ -16,7 +16,7 @@ Parameters:
     - MEDIUM (3): Regularly useful
     - LOW (2): Occasionally relevant
     - BACKGROUND (1): Rarely needed but worth keeping
-    - temporal_scope: 'short_term' or 'long_term'
+- temporal_scope: 'short_term' or 'long_term'
 - role:
   - 'reflection' (typically short_term, ephemeral self-observations)
   - 'episodic' (long_term, personal experiences/events)
@@ -24,7 +24,8 @@ Parameters:
   - 'procedural' (long_term, skills/instructions)
 
 Guidelines:
-- if in doubt, store ephemeral updates as working_memory 'reflection' and more permanent data as long_term with the relevant scope.
+- If in doubt, store ephemeral updates as 'reflection' and more permanent data as long_term with the relevant scope.
+- 'reflection' memoriess will be automatically added to the current working memory.
 
     </description>
     <parameters>
@@ -65,6 +66,9 @@ Guidelines:
             'role': role,
             'unit_name': unit_name
         }
+
+        if role != 'reflection':
+            metadata['recalled'] = True
 
         self.working_memory.add_memory(
             memory_type='internal',
