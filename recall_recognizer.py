@@ -72,16 +72,19 @@ the system's working memory with relevant information that will advance the
 conversation.
 
 Prioritize retrieval based on the following recall priority:
+
 - CORE (5): Critical system operation, always needs to be accessible
 - HIGH (4): Important but not system-critical
 - MEDIUM (3): Regularly useful
 - LOW (2): Occasionally relevant
 - BACKGROUND (1): Rarely needed but worth keeping
 
+and relevance to the user prompt.
+
 Examples:
 
 USER: "what is the name of the person I met last week?"
-ASSISTANT: Relevant memory ids: mem_0123_1699985637892, mem_0456_1699985645678
+ASSISTANT: Relevant memory ids: mem-a1b2c3d4, mem-e5f6g7h8
 
 USER: "what did I eat for breakfast yesterday?"
 ASSISTANT: Relevant memory ids:
@@ -107,6 +110,6 @@ If no memories are relevant, return an empty list.
         return constructed_prompt
 
     def parse_response(self, response):
-        pattern = r'mem_\d+_\d+'
+        pattern = r'mem-[a-f0-9]{8}'
         found = re.findall(pattern, response)
         return found

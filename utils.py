@@ -59,7 +59,7 @@ def format_memories(memories):
 def maybe_invoke_tool(reflection_text: str, working_memory):
     tools_match = re.findall(
 
-        r'<tool>\s*<name>(.*?)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
+        r'<tool>\s*<name>([^<]+)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
         reflection_text,
         re.DOTALL
     )
@@ -70,13 +70,13 @@ def maybe_invoke_tool(reflection_text: str, working_memory):
                 try:
                     # parse all <parameter> elements
                     all_params = re.findall(
-                        r'<parameter>\s*<name>([^<]+)</name>\s*<value>([^<]+)</value>\s*</parameter>',
+                        r'<parameter>\s*<name>([^<]+)</name>\s*<value>(.*?)</value>\s*</parameter>',
                         tool_params_block,
                         re.DOTALL
                     )
                     params_dict = {}
                     for param_name, param_value in all_params:
-                        params_dict[param_name] = param_value
+                        params_dict[param_name.strip()] = param_value.strip()
 
                     tool_instance = tool['class'](working_memory)
 
@@ -88,13 +88,10 @@ def maybe_invoke_tool(reflection_text: str, working_memory):
                         result = tool_instance.run()
 
                     result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}"
-
                     logger.info(result_msg)
                 except Exception as e:
                     result_msg = f"Failed to run tool '{tool_name}': {e}"
-
                     logger.error(result_msg)
             else:
-                result_msg = f"Tool '{tool_name}' not available.",
-
+                result_msg = f"Tool '{tool_name}' not available."
                 logger.warning(result_msg)

@@ -1,11 +1,9 @@
-# memory_graph.py
-
 import networkx as nx
 import pickle
 from pathlib import Path
 import threading
 import time
-import random
+import secrets
 from logger import logger
 
 class MemoryGraph:
@@ -58,44 +56,44 @@ class MemoryGraph:
         logger.info("Memory graph saved successfully.")
 
     def generate_memory_id(self):
-        timestamp = int(time.time() * 1000)
-        random_number = random.randint(0, 9999)
-        return f"mem_{random_number:04}_{timestamp}"
+        random_part = secrets.token_urlsafe(6)[:8]
+        return f"mem-{random_part}"
 
     def add_memory(self, memory_type, content, metadata=None, parent_memory_ids=None, timestamp=None):
-        memory_id = self.generate_memory_id()
-        if metadata is None:
-            metadata = {}
-        if parent_memory_ids is None:
-            parent_memory_ids = []
-        if timestamp is None:
-            timestamp = time.time()
+        with self._lock:
+            memory_id = self.generate_memory_id()
+            if metadata is None:
+                metadata = {}
+            if parent_memory_ids is None:
+                parent_memory_ids = []
+            if timestamp is None:
+                timestamp = time.time()
 
-        if metadata.get('role') is None:
-            metadata['role'] = 'short_term'
+            if metadata.get('role') is None:
+                metadata['role'] = 'short_term'
 
-        # Add memory node with attributes
-        self.graph.add_node(
-            memory_id,
-            memory_type=memory_type,  # 'external', 'internal'
-            content=content,
-            metadata=metadata,
-            timestamp=timestamp
-        )
+            # Add memory node with attributes
+            self.graph.add_node(
+                memory_id,
+                memory_type=memory_type,  # 'external', 'internal'
+                content=content,
+                metadata=metadata,
+                timestamp=timestamp
+            )
 
-        role = metadata.get('role')
-        unit_name = metadata.get('unit_name', 'N/A')
+            role = metadata.get('role')
+            unit_name = metadata.get('unit_name', 'N/A')
 
-        logger.debug(f"Added memory {memory_id}: Type={memory_type}, Role={role}, Unit={unit_name}")
+            logger.debug(f"Added memory {memory_id}: Type={memory_type}, Role={role}, Unit={unit_name}")
 
-        # Add edges from parent memories to this memory
-        for parent_id in parent_memory_ids:
-            self.graph.add_edge(parent_id, memory_id, relation_type='memory_flow')
-            logger.info(f"Created edge from {parent_id} to {memory_id}")
+            # Add edges from parent memories to this memory
+            for parent_id in parent_memory_ids:
+                self.graph.add_edge(parent_id, memory_id, relation_type='memory_flow')
+                logger.info(f"Created edge from {parent_id} to {memory_id}")
 
-        self.save_graph()
+            self.save_graph()
 
-        return memory_id
+            return memory_id
 
     # def update_memory(self, memory_id, **kwargs):
     #     memory = self.graph.nodes[memory_id]

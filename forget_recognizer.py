@@ -1,6 +1,4 @@
-import time
 import re
-import json
 from typing import List
 from logger import logger
 from litellm import completion
@@ -34,11 +32,11 @@ Assistant final message:
 "the dog's name is peanut!"
 
 Memories:
-mem_0123_1699985637892: "the user has a big dog named peanut"
-mem_0456_1699985645678: "the user is allergic to peanuts"
-mem_0789_1699985610111: "the user has 3 cats"
+mem-a1b2c3d4: "the user has a big dog named peanut"
+mem-e5f6g7h8: "the user is allergic to peanuts"
+mem-i9j0k1l2: "the user has 3 cats"
 
-Response: [mem_0123_1699985637892]
+Response: [mem-a1b2c3d4]
 """
 
         # build user prompt with the actual data
@@ -87,6 +85,6 @@ Respond with a list of 0 or more memory ids
             return []
 
     def parse_response(self, response):
-        pattern = r'mem_\d+_\d+'
+        pattern = r'mem-[a-f0-9]{8}'
         found = re.findall(pattern, response)
         return found
