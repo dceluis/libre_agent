@@ -31,12 +31,32 @@ class LibreAgentEngine:
         self.reasoning_lock = threading.Lock()
         self.async_task1 = None
         self.async_task2 = None
+        self.deep_reflection_job = None
 
         logger.info(f"libreagentengine: initialized with deep_schedule={deep_schedule}, quick_schedule={quick_schedule}, reasoning_model={reasoning_model}")
 
     async def schedule_reasoning_queue(self):
+        last_next_deep = None
+
         while not self.stop_flag.is_set():
             schedule.run_pending()
+
+            # Update reflection times if changed
+            current_next_deep = self.deep_reflection_job.next_run if self.deep_reflection_job else None
+
+            if current_next_deep != last_next_deep:
+                content = f"Next deep reflection: {current_next_deep.strftime('%Y-%m-%d %H:%M:%S')}" if current_next_deep else "No scheduled deep reflections"
+                self.working_memory.add_memory(
+                    memory_type='internal',
+                    content=content,
+                    metadata={
+                        'role': 'system_status',
+                        'priority_level': 'MEDIUM',
+                        'temporal_scope': 'short_term',
+                        'unit_name': 'Scheduler'
+                    }
+                )
+                last_next_deep = current_next_deep
 
             await asyncio.sleep(1)
 
@@ -62,7 +82,7 @@ class LibreAgentEngine:
         gcd_val = math.gcd(self.deep_schedule, self.quick_schedule)
 
         if gcd_val > 0:
-            schedule.every(gcd_val).minutes.do(self._schedule_reflection, 2, 'deep')
+            self.deep_reflection_job = schedule.every(gcd_val).minutes.do(self._schedule_reflection, 2, 'deep')
             self.stop_flag.clear()
 
         self.working_memory.register_observer(self.reflex)
