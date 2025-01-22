@@ -80,17 +80,21 @@ class LibreAgentEngine:
         try:
             analysis = unit.reason(self.working_memory, mode)
             logger.info(f"ReasoningUnit succeeded")
-            # logger.warning(f"Analysis: {analysis}")
             if analysis:
-                maybe_invoke_tool(analysis, self.working_memory)
+                maybe_invoke_tool(self.working_memory, mode, analysis)
         except Exception as e:
             logger.error(f"ReasoningUnit failed: {e}")
+
+            return
 
         self._forget(mode)
 
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
             self._schedule_reflection(1)
+
+    async def migrate(self):
+        self._schedule_reflection(1, 'migration')
 
     def _schedule_reflection(self, priority=1, mode='quick'):
         async def _perform_reflection():
@@ -128,9 +132,7 @@ class LibreAgentEngine:
             memory['memory_id'] = memory_id
             logger.info(f'Persisted memory: type={memory_type}, role={role}, metadata={metadata}')
 
-        if memory_type == 'external':
-            _do_persist()
-        elif memory_type == 'internal' and (temporal_scope == 'short_term' or temporal_scope == 'long_term'):
+        if temporal_scope == 'short_term' or temporal_scope == 'long_term':
             _do_persist()
         else:
             logger.warning(f'Memory not persisted: type={memory_type}, content={content}, metadata={metadata}')

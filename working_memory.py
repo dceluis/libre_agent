@@ -86,6 +86,8 @@ class WorkingMemory:
 
         if metadata.get('unit_name') is None:
             metadata['unit_name'] = role.capitalize()
+        if metadata.get('temporal_scope') is None:
+            metadata['temporal_scope'] = 'short_term'
 
         self.add_memory('external', content, parent_memory_ids=parent_memory_ids, metadata=metadata)
 

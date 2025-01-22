@@ -13,11 +13,12 @@ class ToolRegistry:
 
     @classmethod
     def get_tools(cls, mode=None):
-        if mode == 'deep':
-            return cls.tools
+        if mode == 'migration':
+            return [tool for tool in cls.tools if tool['name'] == 'Memory Migration Tool']
+        elif mode == 'deep':
+            return [tool for tool in cls.tools if tool['name'] != 'Memory Migration Tool']
         elif mode == 'quick':
-            # return [tool for tool in cls.tools if tool['name'] != 'Memory Tool']
-            return cls.tools
+            return [tool for tool in cls.tools if tool['name'] != 'Memory Migration Tool']
         else:
             return []
 

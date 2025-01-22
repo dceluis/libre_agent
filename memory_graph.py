@@ -56,7 +56,7 @@ class MemoryGraph:
         logger.info("Memory graph saved successfully.")
 
     def generate_memory_id(self):
-        random_part = secrets.token_urlsafe(6)[:8]
+        random_part = secrets.token_hex(4)[:8]
         return f"mem-{random_part}"
 
     def add_memory(self, memory_type, content, metadata=None, parent_memory_ids=None, timestamp=None):

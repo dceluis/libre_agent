@@ -86,14 +86,26 @@ def register_engine(chat_id: int):
 
     return engine
 
-@router.message(F.text == "/start")
-async def send_welcome(message: Message):
-    """Handle the /start command"""
-    await message.reply("Hi! I'm LibreAgent. I'm here to help and chat with you!")
+@router.message(F.text.startswith("/"))
+async def handle_commands(message: Message):
+    if message.text is None:
+        return
 
-    # Initialize a new engine for this chat if it doesn't exist
+    command = message.text.split()[0].lower()
+
     if message.chat.id not in chat_engines:
         register_engine(message.chat.id)
+
+    engine = chat_engines[message.chat.id]
+
+    if command == "/start":
+        await message.reply("Hi! I'm LibreAgent. I'm here to help and chat with you!")
+    elif command == "/migrate":
+        await engine.migrate()
+
+        await message.reply("Migration process started...")
+    else:
+        await message.reply("Sorry, I don't recognize that command.")
 
 @router.message()
 async def handle_messages(message: Message):

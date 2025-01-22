@@ -51,22 +51,7 @@ class ReasoningUnit():
 
         return traits
 
-    def reason(self, working_memory, mode="quick"):
-        """
-        Execute either a quick reflection or a deeper reflection.
-
-        :param working_memory: Which working memory to use (if any).
-        :param mode: "quick" or "deep".
-        """
-        if mode == "quick":
-            return self.quick_reflection(working_memory)
-        elif mode == "deep":
-            return self.deeper_reflection(working_memory)
-        else:
-            logger.warning(f"Unknown mode: {mode}, defaulting to quick_reflection.")
-            return self.quick_reflection(working_memory)
-
-    def build_unified_system_prompt(self, working_memory):
+    def build_unified_system_prompt(self, working_memory, mode="quick"):
         return f"""
 You are a specialized reasoning unit on a long-term memory and reasoning system.
 Your internal role (unit id) is Reasoning Unit.
@@ -161,10 +146,10 @@ This framework ensures you maintain effective reasoning capabilities while activ
 Focus on meaningful contributions to the system's goals while preventing memory pollution.
 
 System tools:
-{self.describe_tools()}
+{self.describe_tools(mode)}
 """
 
-    def _reflect(self, working_memory, mode):
+    def reason(self, working_memory, mode):
         if not working_memory:
             logger.error(f"No internal WorkingMemory for ReasoningUnit")
             return
@@ -174,27 +159,38 @@ System tools:
             'quick': {
                 'max_memories': 25,
                 'step_name': 'quick_reflection',
-                'instruction_note': "quick mode - focus on immediate actions"
+                'instruction_note': "quick mode - focus on immediate actions",
+                'allowed_tools': self.allowed_tools(mode)
             },
             'deep': {
                 'max_memories': 50,
                 'step_name': 'deep_reflection',
-                'instruction_note': "deep mode - comprehensive analysis"
-            }
-        }.get(mode, {})
+                'instruction_note': "deep mode - comprehensive analysis",
+                'allowed_tools': self.allowed_tools(mode)
+            },
+            'migration': {
+                'max_memories': 1000,
+                'step_name': 'migration_reflection',
+                'instruction_note': "migration mode - export system summary",
+                'allowed_tools': self.allowed_tools(mode)
+            },
+        }.get(mode, {
+            'max_memories': 25,
+            'step_name': 'quick_reflection',
+            'instruction_note': "quick mode - focus on immediate actions",
+            'allowed_tools': self.allowed_tools('quick')
+        })
 
         try:
             # Retrieve memories based on mode
-            recent_memories = working_memory.get_memories(
-                last=config['max_memories'],
-                metadata={'recalled': [False, None]}
-            )
+            recent_memories = working_memory.get_memories(last=config['max_memories'], metadata={'recalled': [False, None]})
+
             recalled_memories = working_memory.get_memories(metadata={'recalled': True})
 
             formatted_recent = format_memories(recent_memories)
             formatted_recalled = format_memories(recalled_memories)
 
-            system_prompt = self.build_unified_system_prompt(working_memory)
+            system_prompt = self.build_unified_system_prompt(working_memory, mode)
 
             instruction = f"""
 [Context]
@@ -213,11 +209,11 @@ Working Memory:
 {formatted_recent}
 
 Analyze the current situation and determine appropriate actions using:
-{self.allowed_tools(mode)}
+{config['allowed_tools']}
 """
 
-            logger.debug(f"System prompt:\n{system_prompt}")
-            logger.debug(f"{mode.capitalize()} Reflection Instruction:\n{instruction}")
+            logger.debug(f"System prompt:\n{system_prompt}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
+            logger.debug(f"Reflection Instruction:\n{instruction}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
 
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -226,7 +222,7 @@ Analyze the current situation and determine appropriate actions using:
 
             completion_response = completion(model=self.model_name, messages=messages)
 
-            logger.debug(f"Completion response: {completion_response}")
+            logger.debug(f"Completion response: {completion_response}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
 
             reflection_text = completion_response['choices'][0]['message']['content'].strip()
 
@@ -237,7 +233,7 @@ Analyze the current situation and determine appropriate actions using:
             output_tokens = completion_response['usage']['completion_tokens']
 
             logger.info(
-                f"{mode.capitalize()} reflection completed:\n{reflection_text}",
+                f"Reflection completed:\n{reflection_text}",
                 extra={
                     'tokens': { 'input': input_tokens, 'output': output_tokens },
                     'model': self.model_name,
@@ -249,17 +245,11 @@ Analyze the current situation and determine appropriate actions using:
             return reflection_text
 
         except Exception as e:
-            logger.error(f"Error in {mode}_reflection: {e}\n{traceback.format_exc()}")
+            logger.error(f"Error in reflection: {e}\n{traceback.format_exc()}")
             return None
 
-    def quick_reflection(self, working_memory):
-        return self._reflect(working_memory, mode='quick')
-
-    def deeper_reflection(self, working_memory):
-        return self._reflect(working_memory, mode='deep')
-
-    def describe_tools(self):
-        available_tools = ToolRegistry.get_tools('deep')
+    def describe_tools(self, mode='quick'):
+        available_tools = ToolRegistry.get_tools(mode)
         tool_descriptions = "<tools>\n"
         tool_descriptions += "\n".join([
             tool['description'] for tool in available_tools

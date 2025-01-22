@@ -56,16 +56,19 @@ def format_memories(memories):
         formatted += f"[{timestamp}] [ID: {memory_id}] - {memory_type} - ({metadata_str}): {content}\n"
     return formatted.strip()
 
-def maybe_invoke_tool(reflection_text: str, working_memory):
+def maybe_invoke_tool(working_memory, mode: str = 'quick', reflection_text: str = ''):
     tools_match = re.findall(
 
         r'<tool>\s*<name>([^<]+)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
         reflection_text,
         re.DOTALL
     )
+
     if tools_match and working_memory is not None:
+        available_tools = ToolRegistry.get_tools(mode=mode)
+
         for tool_name, tool_params_block in tools_match:
-            tool = next((t for t in ToolRegistry.tools if t['name'] == tool_name), None)
+            tool = next((t for t in available_tools if t['name'] == tool_name), None)
             if tool:
                 try:
                     # parse all <parameter> elements
