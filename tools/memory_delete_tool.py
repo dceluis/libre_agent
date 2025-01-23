@@ -12,6 +12,7 @@ class MemoryDeleteTool:
     <guidelines>
 Memories in the working memory CANNOT be deleted. They will automatically clear once they're no longer needed.
 You can only delete memories that are marked as 'recalled' from the Recalled Memories section.
+    </guidelines>
     <parameters>
         <parameter>
             <name>memory_id</name>
@@ -21,8 +22,9 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
 </tool>
 """
 
-    def __init__(self, working_memory):
+    def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory
+        self.mode = mode
         self.memory_graph = memory_graph
 
     def run(self, memory_id: str):
@@ -41,7 +43,11 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
             self.working_memory.add_memory(
                 memory_type='internal',
                 content=f"Cannot delete memory '{memory_id}' while it's in working memory",
-                metadata={'unit_name': 'Memory Delete Tool', 'role': 'tool_result'}
+                metadata={
+                    'unit_name': 'Memory Delete Tool',
+                    'reasoning_mode': self.mode,
+                    'role': 'tool_result'
+                }
             )
 
             return False

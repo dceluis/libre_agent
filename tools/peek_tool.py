@@ -23,7 +23,7 @@ class PeekTool:
     </parameters>
 </tool>
 """
-    def __init__(self, working_memory):
+    def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory
 
     def run(self, unit_name, **kwargs):

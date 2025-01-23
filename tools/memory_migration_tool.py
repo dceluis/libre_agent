@@ -8,11 +8,10 @@ class MemoryMigrationTool:
     description = """
 <tool>
     <name>Memory Migration Tool</name>
-    <description>
-Use this tool to generate and save a distilled summary of all system memories for migration purposes.
-This summary should preserve essential knowledge while removing transient information.
+    <description>Use this tool to generate and save a distilled summary of all system memories for migration purposes.</description>
 
-        <summary_instructions>
+    <guidelines>
+This summary should preserve essential knowledge while removing transient information.
 The summary MUST be structured as follows:
 
 1. Core Objectives:
@@ -39,8 +38,7 @@ Omit:
 - Temporary working memories
 - Deprecated procedures
 - Duplicate information
-        </summary_instructions>
-    </description>
+    </guidelines>
     <parameters>
         <parameter>
             <name>content</name>
@@ -59,8 +57,9 @@ Omit:
 </tool>
 """
 
-    def __init__(self, working_memory):
+    def __init__(self, working_memory, **kwargs):
         self.working_memory = working_memory
+        self.mode = 'migration'
         self.summary_dir = Path("migration_summaries")
         self.summary_dir.mkdir(parents=True, exist_ok=True)
 
@@ -89,6 +88,7 @@ Omit:
                 content=f"System migration summary generated: {fname}",
                 metadata={
                     'unit_name': self.name,
+                    'reasoning_mode': self.mode,
                     'role': 'system_operation',
                     'priority_level': 'BACKGROUND',
                     'temporal_scope': 'short_term'
@@ -100,6 +100,7 @@ Omit:
                 content,
                 metadata={
                     'unit_name': self.name,
+                    'reasoning_mode': self.mode,
                     'parse_mode': 'markdown',
                     'temporal_scope': 'working_memory'
                 }
@@ -110,6 +111,7 @@ Omit:
                 f"Summary generated and saved to {fname}",
                 metadata={
                     'unit_name': self.name,
+                    'reasoning_mode': self.mode,
                     'parse_mode': 'plaintext',
                     'temporal_scope': 'short_term'
                 }

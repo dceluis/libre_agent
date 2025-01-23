@@ -7,23 +7,10 @@ class MemoryUpdateTool:
     description = """
 <tool>
     <name>Memory Update Tool</name>
-    <description>
-Use this tool to:
-1. Assign a memory's priority level
-2. Modify a memory's temporal scope (short_term, long_term)
-3. Modify and update a memory's contents
-
-Recall Priority:
-- CORE (5): Critical system operation, always needs to be accessible
-- HIGH (4): Important but not system-critical
-- MEDIUM (3): Regularly useful
-- LOW (2): Occasionally relevant
-- BACKGROUND (1): Rarely needed but worth keeping
-
-Temporal Scope:
-- long_term: memory is stored permanently for future access
-- short_term: memory is kept temporarily
-    </description>
+    <description>Use this tool to update a memory's metadata and content.</description>
+    <guidelines>
+Use this tool often to keep memories up-to-date with the latest information.
+    </guidelines>
     <parameters>
         <parameter>
             <name>memory_id</name>
@@ -48,7 +35,9 @@ Temporal Scope:
     </parameters>
 </tool>
 """
-    def __init__(self, working_memory):
+    def __init__(self, working_memory, mode='quick', **kwargs):
+        self.working_memory = working_memory
+        self.mode = mode
         self.memory_graph = memory_graph
 
     def validate_priority_level(self, priority_level):
@@ -79,6 +68,8 @@ Temporal Scope:
         if temporal_scope:
             metadata['temporal_scope'] = temporal_scope
 
+        metadata['reasoning_mode'] = self.mode
+
         # Update the memory's metadata
         self.memory_graph.graph.nodes[memory_id]['metadata'] = metadata
 
@@ -87,6 +78,14 @@ Temporal Scope:
             self.memory_graph.graph.nodes[memory_id]['content'] = content
 
         self.memory_graph.save_graph()
+
+        # update working memory
+        recent_memories = self.working_memory.get_memories()
+        memory = next((m for m in recent_memories if m['memory_id'] == memory_id), None)
+
+        if memory:
+            memory['metadata'] = metadata
+            memory['content'] = content if content else memory['content']
 
         logger.debug(f"Memory updated: id='{memory_id}', " f"priority_level='{priority_level}'")
 

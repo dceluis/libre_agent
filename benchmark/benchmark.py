@@ -7,6 +7,7 @@ import argparse
 from datetime import datetime
 
 import litellm
+
 # disable litellm logging
 litellm.suppress_debug_info = True
 
@@ -15,21 +16,22 @@ from evaluator import Evaluator
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from memory_graph import memory_graph
-from working_memory import WorkingMemory
 from logger import logger
-from utils import load_units, load_tools, maybe_invoke_tool
+from utils import load_units, load_tools
+from reasoning_engine import LibreAgentEngine
 
 base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
 
 def run_qa_scenario(eval: dict):
     question = eval.get("question")
 
-    wm = WorkingMemory()
+    engine = LibreAgentEngine(sync=True)
+    wm = engine.working_memory
 
     wm.add_interaction("user", question)
-    wm.execute()
-    reason_memory = wm.get_memories(memory_type="internal", last=1)[0]
-    maybe_invoke_tool(reason_memory, wm)
+
+    engine.execute('quick', skip_forget=True)
+
     answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, last=1)
 
     answer = "<NO ANSWER>"
@@ -45,10 +47,12 @@ def run_qa_scenario(eval: dict):
 def run_inspect_scenario(eval: dict):
     question = eval.get("question")
 
-    wm = WorkingMemory()
+    engine = LibreAgentEngine(sync=True)
+    wm = engine.working_memory
 
     wm.add_interaction("user", question)
-    wm.execute()
+
+    engine.execute('quick')
 
     # Get the recalled memories
     recalled_memories = wm.get_memories(metadata={'recalled': True})
@@ -68,8 +72,7 @@ def populate_memory_graph(data: dict, memory_graph_path: str):
     mg = memory_graph
     mg.set_graph_file_path(memory_graph_path)
 
-    messages = data.get("messages", [])
-
+    messages = data.get("memories", [])
 
     for msg in messages:
         role = msg.get("role", "user")

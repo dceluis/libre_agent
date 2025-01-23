@@ -43,17 +43,34 @@ def get_world_state_section():
 """
     return world_state
 
-def format_memories(memories):
+def format_memories(memories, format: str = 'default'):
     """Format memories into a structured and readable string for inclusion in the prompt."""
     formatted = ""
-    for entry in memories:
-        timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(entry['timestamp']))
-        content = entry['content']
-        memory_id = entry['memory_id']
-        memory_type = entry['memory_type']
-        metadata = entry['metadata']
-        metadata_str = ', '.join(f"{k}={str(v)}" for k, v in metadata.items())
-        formatted += f"[{timestamp}] [ID: {memory_id}] - {memory_type} - ({metadata_str}): {content}\n"
+    if format == 'default':
+        for entry in memories:
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(entry['timestamp']))
+            content = entry['content']
+            memory_id = entry['memory_id']
+            memory_type = entry['memory_type']
+            metadata = entry['metadata']
+            metadata_str = ', '.join(f"{k}={str(v)}" for k, v in metadata.items())
+            formatted += f"[{timestamp}] [ID: {memory_id}] - {memory_type} - ({metadata_str}): {content}\n"
+    elif format == 'conversation':
+        for entry in memories:
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(entry['timestamp']))
+            content = entry['content']
+            memory_type = entry['memory_type']
+            metadata = entry['metadata']
+
+            unit_name = metadata.get('unit_name')
+
+            type_str = '' if memory_type == 'external' else ' (internal)'
+            unit_str = f"[{unit_name}]" if unit_name else ''
+
+            formatted += f"[{timestamp}] {unit_str}{type_str}: {content}\n"
+    else:
+        logger.error(f"Unknown memory format: {format}")
+
     return formatted.strip()
 
 def maybe_invoke_tool(working_memory, mode: str = 'quick', reflection_text: str = ''):
@@ -81,7 +98,7 @@ def maybe_invoke_tool(working_memory, mode: str = 'quick', reflection_text: str 
                     for param_name, param_value in all_params:
                         params_dict[param_name.strip()] = param_value.strip()
 
-                    tool_instance = tool['class'](working_memory)
+                    tool_instance = tool['class'](working_memory, mode=mode)
 
                     logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
 

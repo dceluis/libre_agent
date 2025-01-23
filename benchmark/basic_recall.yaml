@@ -1,7 +1,7 @@
 title: "Long Casual Chat Scenario for Recall Testing"
 description: "A multi-hour session where the user casually shares random facts, while the assistant politely acknowledges them."
 
-messages:
+memories:
   - timestamp: "2025-01-04T10:00:00"
     role: user
     content: "Hey there! Just wanted to chat and share some random stuff. Hope that's cool with you."

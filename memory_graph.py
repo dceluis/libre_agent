@@ -62,15 +62,25 @@ class MemoryGraph:
     def add_memory(self, memory_type, content, metadata=None, parent_memory_ids=None, timestamp=None):
         with self._lock:
             memory_id = self.generate_memory_id()
-            if metadata is None:
-                metadata = {}
+
             if parent_memory_ids is None:
                 parent_memory_ids = []
+            if metadata is None:
+                metadata = {}
             if timestamp is None:
                 timestamp = time.time()
 
             if metadata.get('role') is None:
-                metadata['role'] = 'short_term'
+                metadata['role'] = 'reflection'
+
+            if metadata.get('temporal_scope') is None:
+                metadata['temporal_scope'] = 'working_memory'
+
+            if metadata.get('unit_name') is None:
+                metadata['unit_name'] = 'unknown'
+
+            if metadata.get('reasoning_mode') is None:
+                metadata['reasoning_mode'] = 'none'
 
             # Add memory node with attributes
             self.graph.add_node(
@@ -81,10 +91,8 @@ class MemoryGraph:
                 timestamp=timestamp
             )
 
-            role = metadata.get('role')
-            unit_name = metadata.get('unit_name', 'N/A')
-
-            logger.debug(f"Added memory {memory_id}: Type={memory_type}, Role={role}, Unit={unit_name}")
+            metadata_str = ', '.join(f"{k.capitalize()}={v}" for k, v in metadata.items())
+            logger.debug(f"Added memory {memory_id}: Type={memory_type}, {metadata_str}")
 
             # Add edges from parent memories to this memory
             for parent_id in parent_memory_ids:

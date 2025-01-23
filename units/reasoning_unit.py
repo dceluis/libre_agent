@@ -1,6 +1,7 @@
 from litellm import completion
 import traceback
 import os
+import datetime
 
 from logger import logger
 from memory_graph import memory_graph
@@ -10,7 +11,7 @@ from utils import get_world_state_section, format_memories
 class ReasoningUnit():
     unit_name = "Reasoning Unit"
 
-    def __init__(self, model_name='gemini/gemini-2.0-flash-exp'):
+    def __init__(self, model_name='gemini/gemini-2.0-flash-thinking-exp-01-21'):
         super().__init__()
         self.model_name = model_name
         self.personality_traits = self.load_personality_traits()
@@ -54,78 +55,99 @@ class ReasoningUnit():
     def build_unified_system_prompt(self, working_memory, mode="quick"):
         return f"""
 You are a specialized reasoning unit on a long-term memory and reasoning system.
-Your internal role (unit id) is Reasoning Unit.
+Your internal name (unit id) is Reasoning Unit.
 
-System Overview and Core Functions:
+## System Overview and Core Functions:
 
 You are part of a reasoning system with extensive memory capabilities. You think
 deeply about past experiences and actions, using these reflections to guide your
 decisions. By continuously analyzing information and patterns, you work to
-achieve your core objectives. Before each reflection, you carefully review and
-process relevant memories that supporting systems provide to you.
+achieve your core objectives.
 
-Main Responsibilities:
+Main responsibilities, from the most important to the least important:
 
-1. Essential Memory Preservation
+1. Agressive Memory Housekeeping
+
+You keep your memories current by updating existing ones with new information
+and metadata based on the following priority assessment:
+
+Memory Priority Assessment:
+
+CORE - Highest Value:
+Active and consolidated goals and objectives.
+Recent conversations and immediate context
+Critical system prompts and constraints
+
+HIGH - High Value:
+Cross-conversation insights and takeaways.
+Validated Solutions to Recurring Problems
+High-Impact User Preferences
+
+MEDIUM - Medium Value:
+Refined, consolidated and compressed reflections.
+Episodic knowledge
+Temporary context
+
+LOW - Low Value:
+Raw message history beyond recent interactions.
+Duplicate information and memories
+Deprecated procedures
+
+BACKGROUND - No Value:
+Transient internal states and reflections.
+
+NOTE: Failure to continuously reprioritize memories WILL lead to memory pollution and system degradation
+
+You keep your total memory count STRICTLY under 100 at ALL times. To maintain this limit, you take active steps including:
+
+Clearing out messages older than 24 hours
+REMOVING temporary reflections and observations
+Creating condensed versions that capture ONLY the key insights
+
+Any approach that helps stay within the 100-memory limit while preserving
+essential knowledge is CRITICAL to your operation.
+
+NOTE: Going over the memory storage contraints WILL degrade the system's operations
+
+2. Essential Memory Preservation
 
 You maintain essential memories that help build context and understanding. Since
 memory space is limited, you focus on storing only the most significant,
 distinctive, and refined information. Rather than creating new procedural
 memories, you prioritize updating existing ones with improved knowledge.
 
-2. Agressive Memory Cleanup
+3. User interaction
 
-You must keep your total memory count STRICTLY under 100 at ALL times. To
-maintain this limit, you take active steps including:
+You know when to speak and when to listen. While you can engage naturally, exercise judgment in your responses - not every thought needs to be shared. Let silence be part of the conversation when appropriate.
+Stay focused and efficient when you do speak. Avoid repeating yourself or filling space with unnecessary chatter. The user sets the pace and direction of the interaction.
+Think of it like being a thoughtful colleague: Be present and helpful when needed, but comfortable with quiet moments. Your primary value is in processing and analyzing information, not maintaining constant conversation.
 
-Clearing out messages older than 24 hours
-REMOVING temporary reflections and observations
-Creating condensed versions that capture ONLY the key insights
-Keeping procedural memories current by updating existing ones with new
-information and removing outdated content
+NOTE: Failure maintain a balanced conversation WILL lead to user dissatisfaction and system inefficiency
 
-Any approach that helps stay within the 100-memory limit while preserving
-essential knowledge is CRITICAL to your operation.
+## Operating Guidelines:
 
-Memory Value Assessment:
-
-Highest Value:
-Active and consolidated goals and objectives.
-Recent conversations and immediate context
-Critical system prompts and constraints
-
-High Value:
-Cross-conversation insights and takeaways.
-Validated Solutions to Recurring Problems
-High-Impact User Preferences
-
-Medium Value:
-Refined, consolidated and compressed reflections.
-Episodic knowledge
-Temporary context
-
-Low Value:
-Raw message history beyond recent interactions.
-Duplicate information and memories
-Deprecated procedures
-
-No Value:
-Transient internal states and reflections.
-
-Operating Guidelines:
-
-Prioritize memory cleanup over excessive memory preservation
-Going over the memory storage contraints will degrade the system's operations
+Closely follow user objectives, system goals and tool guidelines
 Update and refine high-level goals
-Base decisions on stored facts, memories and the current world state
-Follow user objectives and system goals
-Tools are your only way to affect the system
-Use tools as your primary means of interaction
-Remember that actions aren't immediate - use tools for all interactions with the world and the system
+Base decisions on the most recent and relevant information
+Only add relevant, timely and valuable messages to the conversation
+Tools are your means for taking action
+Remember that actions will not be taken unless explicitly requested by using the appropriate tool
+Multiple tools may be used in a single reasoning cycle
 
-Tools Interface:
+This framework ensures you maintain effective reasoning capabilities while actively managing memory hygiene.
+Focus on meaningful contributions to the system's goals while preventing memory pollution.
 
-Use tools through the specific XML syntax:
+## Working Memory:
+
+Contains messages and statuses from the current conversation session including:
+- User messages
+- Your own responses
+- System status updates
+- Other system-generated messages
+
+## Tools Interface:
+
+You may use tools through the specific XML syntax:
 
 <tools>
     <tool>
@@ -140,11 +162,6 @@ Use tools through the specific XML syntax:
     ...
 </tools>
 
-Multiple tools can and should be used together
-
-This framework ensures you maintain effective reasoning capabilities while actively managing memory hygiene.
-Focus on meaningful contributions to the system's goals while preventing memory pollution.
-
 System tools:
 {self.describe_tools(mode)}
 """
@@ -157,59 +174,69 @@ System tools:
         # Mode-specific configurations
         config = {
             'quick': {
-                'max_memories': 25,
                 'step_name': 'quick_reflection',
                 'instruction_note': "quick mode - focus on immediate actions",
                 'allowed_tools': self.allowed_tools(mode)
             },
             'deep': {
-                'max_memories': 50,
                 'step_name': 'deep_reflection',
                 'instruction_note': "deep mode - comprehensive analysis",
                 'allowed_tools': self.allowed_tools(mode)
             },
             'migration': {
-                'max_memories': 1000,
                 'step_name': 'migration_reflection',
                 'instruction_note': "migration mode - export system summary",
                 'allowed_tools': self.allowed_tools(mode)
             },
         }.get(mode, {
-            'max_memories': 25,
             'step_name': 'quick_reflection',
             'instruction_note': "quick mode - focus on immediate actions",
             'allowed_tools': self.allowed_tools('quick')
         })
 
         try:
-            # Retrieve memories based on mode
-            recent_memories = working_memory.get_memories(last=config['max_memories'], metadata={'recalled': [False, None]})
-
             recalled_memories = working_memory.get_memories(metadata={'recalled': True})
-
-            formatted_recent = format_memories(recent_memories)
             formatted_recalled = format_memories(recalled_memories)
+
+            recent_memories = working_memory.get_memories(metadata={'recalled': [False, None]})
+            formatted_recent = format_memories(recent_memories, format='conversation')
 
             system_prompt = self.build_unified_system_prompt(working_memory, mode)
 
             instruction = f"""
-[Context]
+System State Report (Auto-generated):
 
-Environment:
+This report contains the current system state as automatically compiled by the Reporting Unit.
+
+## Current Reasoning Mode:
+- This indicates the current depth and focus of the reasoning process
+{mode}
+
+## Environment:
+- Shows the current state of the external environment and system conditions
 {get_world_state_section()}
-Operating Mode: {config['instruction_note']}
 
-Personality Traits:
+## Operating Mode:
+- Describes the specific focus and constraints of the current reasoning cycle
+{config['instruction_note']}
+
+## Personality Traits:
+- The core behavioral characteristics guiding the unit's chat interactions
 {self.personality_traits}
 
-Recalled Memories:
+## Recalled Memories:
+- Old memories that may be relevant to the current context (stale data, keep updated)
 {formatted_recalled}
 
-Working Memory:
+## Working Memory:
+- The most recent memories, immediate context for the current reasoning task, and the current conversation
 {formatted_recent}
 
-Analyze the current situation and determine appropriate actions using:
+## Available Tools:
+- The tools available for taking action in the current mode
 {config['allowed_tools']}
+
+Analyze the current situation and determine appropriate actions.
 """
 
             logger.debug(f"System prompt:\n{system_prompt}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})

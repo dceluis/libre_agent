@@ -9,24 +9,10 @@ class MemoryCreateTool:
     <description>
 Use this tool to add a memory to the system.
 
-Parameters:
-- priority_level:
-    - CORE (5): Critical system operation, always needs to be accessible
-    - HIGH (4): Important but not system-critical
-    - MEDIUM (3): Regularly useful
-    - LOW (2): Occasionally relevant
-    - BACKGROUND (1): Rarely needed but worth keeping
-- temporal_scope: 'short_term' or 'long_term'
-- role:
-  - 'reflection' (typically short_term, ephemeral self-observations)
-  - 'episodic' (long_term, personal experiences/events)
-  - 'semantic' (long_term, general facts/knowledge)
-  - 'procedural' (long_term, skills/instructions)
-
-Guidelines:
+    <guidelines>
 - If in doubt, store ephemeral updates as 'reflection' and more permanent data as long_term with the relevant scope.
 - 'reflection' memoriess will be automatically added to the current working memory.
-
+    </guidelines>
     </description>
     <parameters>
         <parameter>
@@ -51,20 +37,29 @@ Guidelines:
         <parameter>
             <name>role</name>
             <description>'reflection' (ephemeral), 'episodic', 'semantic', 'procedural'</description>
+            <guidelines>
+  - 'reflection' (typically short_term, ephemeral self-observations)
+  - 'episodic' (long_term, personal experiences/events)
+  - 'semantic' (long_term, general facts/knowledge)
+  - 'procedural' (long_term, skills/instructions)
+            </guidelines>
             <required>True</required>
         </parameter>
     </parameters>
 </tool>
 """
-    def __init__(self, working_memory):
+    def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory
+        self.mode = mode
 
-    def run(self, unit_name, content, temporal_scope='short_term', role='reflection', **kwargs):
+    def run(self, unit_name, content, temporal_scope='short_term', role='reflection', priority_level='BACKGROUND', **kwargs):
         metadata = {
             'temporal_scope': temporal_scope,
+            'priority_level': priority_level,
 
             'role': role,
-            'unit_name': unit_name
+            'unit_name': unit_name,
+            'reasoning_mode': self.mode,
         }
 
         if role != 'reflection':
@@ -76,7 +71,13 @@ Guidelines:
             metadata=metadata
         )
 
-        logger.debug(f"Memory added for unit='{unit_name}', " f"temporal_scope='{temporal_scope}', role='{role}'.")
+        logger.debug(
+                f"Memory added for unit='{unit_name}'"
+                f", priority={priority_level}"
+                f", scope={temporal_scope}"
+                f", role={role}"
+                f", content={content}"
+        )
         return True
 
 ToolRegistry.register_tool(MemoryCreateTool)

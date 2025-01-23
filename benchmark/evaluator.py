@@ -9,7 +9,7 @@ from logger import logger
 
 class Evaluator:
 
-    def __init__(self, model="gemini/gemini-1.5-flash"):
+    def __init__(self, model="gemini/gemini-2.0-flash-thinking-exp-01-21"):
         self.model = model
 
     def evaluate_answer(self, scenario: str, references: list | None = None) -> str:

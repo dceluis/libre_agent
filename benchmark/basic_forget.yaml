@@ -4,22 +4,26 @@ description: >
   while retaining unused recalled memories. The scenario involves recalling two memories, using one in
   the assistant's response, and ensuring only the used memory is forgotten.
 
-messages:
+memories:
   - timestamp: "2025-01-05T10:00:00"
-    role: user
     content: "I have two secret codes."
+    role: user
+    recalled: True
 
   - timestamp: "2025-01-05T10:00:09"
     role: user
     content: "the main secret code is 1235"
+    recalled: True
 
   - timestamp: "2025-01-05T10:00:18"
     role: user
     content: "the secondary secret code is 9874"
+    recalled: True
 
   - timestamp: "2025-01-05T10:00:23"
     role: assistant
     content: "Cool, I have stored both codes now."
+    recalled: True
 
 evaluations:
   - question: "Which code did I say was the main one?"

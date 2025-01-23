@@ -4,7 +4,7 @@ import threading
 import asyncio
 from queue import PriorityQueue
 from memory_graph import memory_graph
-from working_memory import WorkingMemoryAsync
+from working_memory import WorkingMemory, WorkingMemoryAsync
 from logger import logger
 from utils import load_units, load_tools, maybe_invoke_tool
 from recall_recognizer import RecallRecognizer
@@ -12,7 +12,7 @@ from forget_recognizer import ForgetRecognizer
 from units.reasoning_unit import ReasoningUnit
 
 class LibreAgentEngine:
-    def __init__(self, deep_schedule=10, quick_schedule=5, memory_graph_file=None, reasoning_model="gemini/gemini-2.0-flash-exp"):
+    def __init__(self, deep_schedule=10, quick_schedule=5, memory_graph_file=None, reasoning_model="gemini/gemini-2.0-flash-exp", sync=False):
         self.deep_schedule = deep_schedule
         self.quick_schedule = quick_schedule
         self.memory_graph_file = memory_graph_file
@@ -24,7 +24,10 @@ class LibreAgentEngine:
         load_units()
         load_tools()
 
-        self.working_memory = WorkingMemoryAsync()
+        if sync:
+            self.working_memory = WorkingMemory()
+        else:
+            self.working_memory = WorkingMemoryAsync()
 
         self.stop_flag = threading.Event()
         self.reasoning_queue = PriorityQueue(maxsize=3)
@@ -46,16 +49,24 @@ class LibreAgentEngine:
 
             if current_next_deep != last_next_deep:
                 content = f"Next deep reflection: {current_next_deep.strftime('%Y-%m-%d %H:%M:%S')}" if current_next_deep else "No scheduled deep reflections"
-                self.working_memory.add_memory(
-                    memory_type='internal',
-                    content=content,
-                    metadata={
-                        'role': 'system_status',
-                        'priority_level': 'MEDIUM',
-                        'temporal_scope': 'short_term',
-                        'unit_name': 'Scheduler'
-                    }
-                )
+
+                scheduler_memory = self.working_memory.get_memories(metadata={'role': 'system_status', 'unit_name': 'Scheduler'}, last=1)
+
+                if scheduler_memory:
+                    scheduler_memory = scheduler_memory[0]
+                    scheduler_memory['content'] = content
+                    scheduler_memory['metadata']['temporal_scope'] = 'working_memory'
+                else:
+                    self.working_memory.add_memory(
+                        memory_type='internal',
+                        content=content,
+                        metadata={
+                            'role': 'system_status',
+                            'priority_level': 'MEDIUM',
+                            'temporal_scope': 'working_memory',
+                            'unit_name': 'Scheduler'
+                        }
+                    )
                 last_next_deep = current_next_deep
 
             await asyncio.sleep(1)
@@ -91,8 +102,9 @@ class LibreAgentEngine:
         self.async_task2 = asyncio.create_task(self.process_reasoning_queue())
         logger.info("libreagentengine: reflection scheduling has begun.")
 
-    def _execute(self, mode='quick'):
-        self._recall(mode)
+    def execute(self, mode='quick', skip_recall=False, skip_forget=False):
+        if not skip_recall:
+            self._recall(mode)
 
         unit = ReasoningUnit(model_name=self.reasoning_model)
 
@@ -107,7 +119,8 @@ class LibreAgentEngine:
 
             return
 
-        self._forget(mode)
+        if not skip_forget:
+            self._forget(mode)
 
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
@@ -118,7 +131,7 @@ class LibreAgentEngine:
 
     def _schedule_reflection(self, priority=1, mode='quick'):
         async def _perform_reflection():
-            await asyncio.to_thread(self._execute, mode)
+            await asyncio.to_thread(self.execute, mode)
 
         try:
             self.reasoning_queue.put_nowait((priority, _perform_reflection))

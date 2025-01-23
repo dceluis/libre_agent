@@ -37,6 +37,8 @@ class WorkingMemory:
         self._notify_observers(memory)
 
     def add_memory(self, memory_type, content, parent_memory_ids=None, metadata=None):
+        memory_id = 'N/A'
+
         if parent_memory_ids is None:
             parent_memory_ids = []
         if metadata is None:
@@ -48,19 +50,17 @@ class WorkingMemory:
         if metadata.get('temporal_scope') is None:
             metadata['temporal_scope'] = 'working_memory'
 
+        if metadata.get('unit_name') is None:
+            metadata['unit_name'] = 'unknown'
+
+        if metadata.get('reasoning_mode') is None:
+            metadata['reasoning_mode'] = 'none'
+
         # UPDATE: 01/08/2025
         # we are not adding the memories to the memory graph by default
         # this is because we made the memory tool be the main driver of
         # memorization. this puts the responsibility of adding memories on the
         # llm.
-        # memory_id = memory_graph.add_memory(
-        #     memory_type=memory_type,
-        #     content=content,
-        #     metadata=metadata,
-        #     parent_memory_ids=parent_memory_ids
-        # )
-
-        memory_id = 'N/A'
 
         memory = {
             'memory_id': memory_id,
@@ -88,6 +88,10 @@ class WorkingMemory:
             metadata['unit_name'] = role.capitalize()
         if metadata.get('temporal_scope') is None:
             metadata['temporal_scope'] = 'short_term'
+        if metadata.get('priority_level') is None:
+            metadata['priority_level'] = 'CORE'
+        if metadata.get('reasoning_mode') is None:
+            metadata['reasoning_mode'] = 'none'
 
         self.add_memory('external', content, parent_memory_ids=parent_memory_ids, metadata=metadata)
 
@@ -142,9 +146,9 @@ class WorkingMemory:
 
     def get_last_reasoning_output(self):
         memories = self.get_memories(
-            metadata={'role': 'working_memory'},
+            metadata={'role': 'assistant'},
             last=1,
-            memory_type='internal',
+            memory_type='external',
         )
         if memories:
             return memories[0]['content']
