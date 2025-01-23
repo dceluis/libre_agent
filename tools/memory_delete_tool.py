@@ -33,8 +33,10 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
             logger.error(f"Memory with ID '{memory_id}' not found")
             return False
 
+        recalled_memories = self.memory_graph.get_memories(metadata={'recalled': True})
         recent_memories = self.working_memory.get_memories(metadata={'recalled': [False, None]})
-        # Check if memory is in working memory
+
+        recalled_memory_ids = [m['memory_id'] for m in recalled_memories]
         working_memory_ids = [m['memory_id'] for m in recent_memories]
 
         if memory_id in working_memory_ids:
@@ -51,6 +53,10 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
             )
 
             return False
+        elif memory_id in recalled_memory_ids:
+            # Remove the memory from the working memory
+            new_memories = [m for m in recalled_memories if m['memory_id'] != memory_id]
+            self.working_memory.set_memories(new_memories)
 
         # Remove the memory node from the graph
         self.memory_graph.remove_memory(memory_id)

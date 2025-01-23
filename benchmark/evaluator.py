@@ -34,7 +34,8 @@ Evaluate correctness, completeness, and recall fidelity, using the following
 references as metrics (these are ground truths or relevant info):
 {os.linesep.join(references)}
 
-Return "Pass" or "Fail" (don't prefix anything) followed by an optional comment on your evaluation.
+Return "Pass" or "Fail" (don't prefix anything) on a new line,
+followed by an optional comment on your evaluation.
 """
 
         try:

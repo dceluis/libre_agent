@@ -29,3 +29,4 @@ evaluations:
   - question: "Which code did I say was the main one?"
     references: "Memory for recalled code 1235 should NOT be present in recalled memories."
     type: "inspect"
+    skip_recall: True

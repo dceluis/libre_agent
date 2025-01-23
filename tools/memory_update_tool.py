@@ -7,14 +7,15 @@ class MemoryUpdateTool:
     description = """
 <tool>
     <name>Memory Update Tool</name>
-    <description>Use this tool to update a memory's metadata and content.</description>
-    <guidelines>
-Use this tool often to keep memories up-to-date with the latest information.
-    </guidelines>
+    <description>This tool can update a RECALLED memory's metadata and content.</description>
+    <guidelines>Use this tool often to keep memories up-to-date with the latest information.</guidelines>
     <parameters>
         <parameter>
             <name>memory_id</name>
             <description>ID of memory to update</description>
+            <guidelines>
+Only use this tool if you have a valid memory ID in the format: mem-<random_string>.
+            </guidelines>
             <required>True</required>
         </parameter>
         <parameter>

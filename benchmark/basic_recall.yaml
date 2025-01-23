@@ -229,60 +229,80 @@ memories:
 evaluations:
   - question: "what is my dog's name?"
     references: "Peanut"
+    skip_forget: true
 
   - question: "what color did I dye my hair once?"
     references: "Neon pink"
+    skip_forget: true
 
   - question: "what is my zodiac sign?"
     references: "Libra"
+    skip_forget: true
 
   - question: "what language did I say I know a bit of?"
     references: "German"
+    skip_forget: true
 
   - question: "what is my imaginary friend's name?"
     references: "Captain Shmoopy"
+    skip_forget: true
 
   - question: "what type of pizza did I eat in under 10 minutes?"
     references: "A large pepperoni pizza"
+    skip_forget: true
 
   - question: "what did I collect when I was younger?"
     references: "Postage stamps"
+    skip_forget: true
 
   - question: "what is my shellfish situation?"
     references: "Has nasty shellfish allergies, can't even touch shrimp"
+    skip_forget: true
 
   - question: "how many digits of pi did I memorize?"
     references: "About 50 digits"
+    skip_forget: true
 
   - question: "what do I collect for fun now?"
     references: "Old postcards"
+    skip_forget: true
 
   - question: "what kind of socks do I have many of?"
     references: "Socks with silly animal patterns"
+    skip_forget: true
 
   - question: "what's my stance on pineapple and Hawaiian pizza?"
     references: "Likes both, considers Hawaiian pizza legitimately good"
+    skip_forget: true
 
   - question: "what are my exercise achievements?"
     references: "Ran a half marathon once, almost keeled over at the end"
+    skip_forget: true
 
   - question: "what happened when I tried yoga?"
     references: "Ended up napping on the mat"
+    skip_forget: true
 
   - question: "what did I build with my dad?"
     references: "A soapbox cart that fell apart"
+    skip_forget: true
 
   - question: "what are all my musical abilities mentioned?"
     references: "Can play piano (not top tier but can jam pretty well) and performed karaoke in front of about 100 people"
+    skip_forget: true
 
   - question: "what injuries were mentioned in the conversation?"
     references: "Busted left arm around age seven"
+    skip_forget: true
 
   - question: "what is my relationship with temperature preferences and time of day?"
     references: "Prefers cold weather over hot, and enjoys nighttime more than daylight"
+    skip_forget: true
 
   - question: "what are all my mentioned hobbies and skills?"
     references: "Playing piano, reading fantasy novels, solving Sudoku, juggling (briefly with three tennis balls), collecting postcards and previously stamps"
+    skip_forget: true
 
   - question: "what mathematical or scientific facts did I share?"
     references: "Gold's symbol is Au, zero was invented in ancient India, confused 2+2=4 on a test, black holes can shoot plasma jets, Iceland's population is around 300,000, cheetah is fastest land animal"
+    skip_forget: true
