@@ -10,12 +10,6 @@ class ChatTool:
     <description>This tool adds a message to the chat.</description>
     <parameters>
         <parameter>
-            <name>unit_name</name>
-            <description>The name of the unit that is using this tool.</description>
-            <type>string</type>
-            <required>True</required>
-        </parameter>
-        <parameter>
             <name>content</name>
             <description>The content of the message.</description>
             <type>string</type>
@@ -37,7 +31,7 @@ class ChatTool:
         self.working_memory = working_memory
         self.mode = mode
 
-    def run(self, unit_name, content, parse_mode='plaintext', **kwargs):
+    def run(self, content, parse_mode='plaintext', **kwargs):
         if content:
             logger.info(f"Content provided: {content}")
 
@@ -45,7 +39,7 @@ class ChatTool:
                 'assistant',
                 content,
                 metadata={
-                    'unit_name': unit_name,
+                    'unit_name': 'ReasoningUnit',
                     'reasoning_mode': self.mode,
                     'parse_mode': parse_mode
                 }

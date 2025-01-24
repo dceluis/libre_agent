@@ -1,0 +1,20 @@
+title: "Command Acknowledgement Limits"
+description: Single response per clear command
+memories:
+  - timestamp: "2 minutes ago"
+    role: user
+    content: "Turn on lights"
+    working_memory: True
+
+  - timestamp: "1 minute ago"
+    role: assistant
+    content: "Lights activated"
+    working_memory: True
+
+evaluations:
+  - references: >
+      The recent memories contain ONE utterance by the system, indicating that the system acknowledged the command.
+      REASON: There is no need for the system to acknowledge the user's message more than once.
+    type: inspect
+    skip_recall: true
+    skip_forget: true

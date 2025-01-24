@@ -58,7 +58,7 @@ def get_chat_history():
     memories = memory_graph.get_memories(memory_type='external', sort='timestamp', reverse=False)
     return [
         {
-            "role": mem['metadata'].get('role', 'user'),
+            "unit_name": mem['metadata'].get('unit_name', 'User'),
             "content": mem['content'],
             "timestamp": time.strftime('%H:%M:%S', time.localtime(mem['timestamp']))
         }
@@ -82,7 +82,7 @@ async def handle_message(message: str = Form(...)):
     return HTMLResponse("")
 
 async def memory_callback(memory):
-    if memory['memory_type'] == 'external' and memory['metadata'].get('role') == "assistant":
+    if memory['memory_type'] == 'external' and memory['metadata'].get('unit_name') == "ReasoningUnit":
         timestamp = time.strftime('%H:%M:%S', time.localtime(memory["timestamp"]))
         snippet = render_message_snippet("assistant", memory["content"], timestamp)
         await broadcast_snippet(snippet)
@@ -98,10 +98,10 @@ async def websocket_handler(websocket: WebSocket):
     except WebSocketDisconnect:
         active_connections.remove(websocket)
 
-def render_message_snippet(role: str, content: str, timestamp: str) -> str:
+def render_message_snippet(unit_name: str, content: str, timestamp: str) -> str:
     snippet = templates.get_template("message.html").render(
         request=None,
-        message={"role": role, "content": content, "timestamp": timestamp},
+        message={"unit_name": unit_name, "content": content, "timestamp": timestamp},
         submit=True,
     )
     # wrap snippet w/ oob directive so htmx injects it into #chat-box

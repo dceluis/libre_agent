@@ -123,7 +123,7 @@ class LibreAgentEngine:
             self._forget(mode)
 
     async def reflex(self, memory):
-        if memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'user':
+        if memory['memory_type'] == 'external' and memory['metadata'].get('unit_name') == 'User':
             self._schedule_reflection(1)
 
     async def migrate(self):
@@ -153,7 +153,6 @@ class LibreAgentEngine:
         memory_type = memory.get('memory_type')
         content = memory.get('content')
 
-        role = metadata.get('role')
         temporal_scope = metadata.get('temporal_scope')
 
         def _do_persist():
@@ -163,7 +162,7 @@ class LibreAgentEngine:
                 parent_memory_ids=memory.get('parent_memory_ids')
             )
             memory['memory_id'] = memory_id
-            logger.info(f'Persisted memory: type={memory_type}, role={role}, metadata={metadata}')
+            logger.info(f'Persisted memory: type={memory_type}, content={content}, metadata={metadata}')
 
         if temporal_scope == 'short_term' or temporal_scope == 'long_term':
             _do_persist()
@@ -203,7 +202,7 @@ class LibreAgentEngine:
         logger.debug(f"Found {len(ephemeral_mems)} ephemeral memories to check")
 
         if mode == 'quick':
-            last_assistant_output = self.working_memory.get_last_reasoning_output()
+            last_assistant_output = self.working_memory.get_last_assistant_output()
             logger.debug(f"Last assistant output: {last_assistant_output}")
 
             if not last_assistant_output:

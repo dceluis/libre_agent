@@ -73,7 +73,7 @@ def register_engine(chat_id: int):
 
     # Register observer for proactive messages
     async def proactive_handler(memory):
-        if (memory['memory_type'] == 'external' and memory['metadata'].get('role') == 'assistant'):
+        if (memory['memory_type'] == 'external' and memory['metadata'].get('unit_name') == 'ReasoningUnit'):
             await send_message(
                 chat_id,
                 memory['content'],

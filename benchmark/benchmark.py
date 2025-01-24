@@ -19,6 +19,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from memory_graph import memory_graph
 from logger import logger
 from reasoning_engine import LibreAgentEngine
+from utils import format_memories
 
 base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
 
@@ -33,7 +34,7 @@ def run_qa_scenario(eval: dict, engine, wm):
 
     engine.execute('quick', skip_forget=skip_forget, skip_recall=skip_recall)
 
-    answer_memory = wm.get_memories(memory_type="external", metadata={"role": "assistant"}, last=1)
+    answer_memory = wm.get_memories(memory_type="external", metadata={"unit_name": "ReasoningUnit"}, last=1)
 
     answer = "<NO ANSWER>"
     if answer_memory:
@@ -52,6 +53,7 @@ def run_inspect_scenario(eval: dict, engine, wm):
 
     skip_forget = eval.get("skip_forget", False)
     skip_recall = eval.get("skip_recall", False)
+
     engine.execute('quick', skip_forget=skip_forget, skip_recall=skip_recall)
 
     # Get the recalled memories
@@ -61,8 +63,7 @@ def run_inspect_scenario(eval: dict, engine, wm):
     scenario = "Recalled Memories:\n"
 
     if len(recalled_memories) > 0:
-        for memory in recalled_memories:
-            scenario += f"- {memory.get('content', 'No content')}\n"
+        scenario += format_memories(recalled_memories)
     else:
         scenario += "<EMPTY LIST>"
 
@@ -71,14 +72,7 @@ def run_inspect_scenario(eval: dict, engine, wm):
     scenario += "\n\nRecent Memories:\n"
 
     if len(recent_memories) > 0:
-        for memory in recent_memories:
-            metadata = memory.get('metadata', {})
-            unit_name = metadata.get('unit_name', 'No unit name')
-            content = memory.get('content', 'No content')
-            timestamp = memory.get('timestamp')
-            timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
-
-            scenario += f"[{timestamp}] [{unit_name}]: {content}\n"
+        scenario += format_memories(recent_memories, format='conversation')
     else:
         scenario += "<EMPTY LIST>"
 
@@ -108,8 +102,9 @@ def populate_memory_graph(memories_data: list, working_memory, memory_graph_path
 
         metadata = {
             "unit_name": "User" if role == "user" else "ReasoningUnit",
-            "role": role,
-            "timestamp": timestamp
+            "role": "message",
+            "recalled": None,
+            "temporal_scope": "short_term"
         }
 
         memory_id = memory_graph.add_memory(
@@ -137,18 +132,19 @@ def populate_memory_graph(memories_data: list, working_memory, memory_graph_path
 
     return memory_ids
 
-def run_scenario(run_id: str, scenario_name: str, data: dict):
+def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
     run_dir = os.path.join(base_runs_dir, run_id)
 
-    evals = data.get("evaluations", [])
-    memories_data = data.get("memories", [])
+    evals = scenario_data.get("evaluations", [])
+    memories_data = scenario_data.get("memories", [])
 
+    scenario_results = []
     for idx, eval in enumerate(evals):
         references = eval.get("references", [])
         if isinstance(references, str):
             references = [references]
         # Create a temporary graph file within the run directory
-        temp_graph_filename = f'memory_graph_{scenario_name}_{idx}.pkl'
+        temp_graph_filename = f'memory_graph_{scenario_file_name}_{idx}.pkl'
         temp_graph_path = os.path.join(run_dir, temp_graph_filename)
 
         engine = LibreAgentEngine(sync=True)
@@ -169,14 +165,70 @@ def run_scenario(run_id: str, scenario_name: str, data: dict):
         evaluator = Evaluator()
         evaluation = evaluator.evaluate_answer(scenario=scenario, references=references)
 
-        print("==============================================================")
-        print(f"{scenario}\n")
-        print(f"Evaluation: {evaluation}")
-        print("==============================================================")
+        # After getting evaluation result
+        status = "Pass" if evaluation.strip().lower().startswith("pass") else "Fail"
+        scenario_results.append({
+            "scenario": scenario_file_name,
+            "attempt": scenario,
+            "question": eval.get("question", "<no question>"),
+            "status": status,
+            "details": evaluation,
+            "references": eval.get("references", [])
+        })
+
         time.sleep(2)
 
         # cleanup the temporary graph file
         os.remove(temp_graph_path)
+
+    return scenario_results
+
+def print_summary(all_results):
+    """Prints detailed test results summary"""
+    # Calculate totals
+    total_tests = len(all_results)
+    passed_tests = sum(1 for r in all_results if r['status'] == 'Pass')
+    failed_tests = total_tests - passed_tests
+    success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+
+    # Group by scenario
+    scenario_stats = {}
+    for res in all_results:
+        scenario = res['scenario']
+        if scenario not in scenario_stats:
+            scenario_stats[scenario] = {'pass': 0, 'fail': 0}
+        if res['status'] == 'Pass':
+            scenario_stats[scenario]['pass'] += 1
+        else:
+            scenario_stats[scenario]['fail'] += 1
+
+    # Print detailed report
+    print("\n=== BENCHMARK RESULTS ===")
+
+    # Scenario breakdown
+    print("\n## Scenario Breakdown ##")
+    for scenario, stats in scenario_stats.items():
+        total = stats['pass'] + stats['fail']
+        rate = (stats['pass'] / total * 100) if total > 0 else 0
+        print(f"{scenario}:")
+        print(f"  Passed: {stats['pass']}/{total} ({rate:.1f}%)")
+
+    # Overall summary
+    print("\n## Overall Summary ##")
+    print(f"Total Tests: {total_tests}")
+    print(f"Passed: {passed_tests} ({success_rate:.1f}%)")
+    print(f"Failed: {failed_tests}")
+
+    # Failure details
+    if failed_tests > 0:
+        print("\n## Failure Details ##")
+        for res in all_results:
+            if res['status'] == 'Fail':
+                print(f"Scenario: {res['scenario']}")
+                print(f"Question: {res['question']}")
+                print(f"Expected: {res['references']}")
+                print(f"Result: {res['details']}")
+                print("---")
 
 def run(run_id: str, include_pattern: str):
     # Find all YAML files in the current file's directory
@@ -190,13 +242,18 @@ def run(run_id: str, include_pattern: str):
 
     logger.debug(f"Found YAML files: {yaml_paths}")
 
+    all_results = []
     for yaml_path in yaml_paths:
         with open(yaml_path, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
+            scenario_data = yaml.safe_load(f)
 
-        scenario_name = os.path.splitext(os.path.basename(yaml_path))[0]
+        scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
 
-        run_scenario(run_id, scenario_name, data)
+        scenario_results = run_scenario(run_id, scenario_file_name, scenario_data)
+
+        all_results.extend(scenario_results)
+
+    print_summary(all_results)
 
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")

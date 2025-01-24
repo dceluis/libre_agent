@@ -55,8 +55,8 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
             return False
         elif memory_id in recalled_memory_ids:
             # Remove the memory from the working memory
-            new_memories = [m for m in recalled_memories if m['memory_id'] != memory_id]
-            self.working_memory.set_memories(new_memories)
+            new_memories = [m for m in self.working_memory.memories if m['memory_id'] != memory_id]
+            self.working_memory.memories = new_memories
 
         # Remove the memory node from the graph
         self.memory_graph.remove_memory(memory_id)

@@ -82,10 +82,10 @@ class WorkingMemory:
         if metadata is None:
             metadata = {}
 
-        metadata['role'] = role
+        metadata['role'] = 'message'
 
         if metadata.get('unit_name') is None:
-            metadata['unit_name'] = role.capitalize()
+            metadata['unit_name'] = 'ReasoningUnit' if role == 'assistant' else 'User'
         if metadata.get('temporal_scope') is None:
             metadata['temporal_scope'] = 'short_term'
         if metadata.get('priority_level') is None:
@@ -126,9 +126,8 @@ class WorkingMemory:
 
     def get_last_user_input(self):
         memories = self.get_memories(
-            metadata={'role': 'user'},
+            metadata={ 'role': 'message', 'unit_name': 'User' },
             last=1,
-            memory_type='external',
         )
         if memories:
             return memories[0]['content']
@@ -136,19 +135,8 @@ class WorkingMemory:
 
     def get_last_assistant_output(self):
         memories = self.get_memories(
-            metadata={'role': 'assistant'},
+            metadata={'role': 'message', 'unit_name': 'ReasoningUnit'},
             last=1,
-            memory_type='external',
-        )
-        if memories:
-            return memories[0]['content']
-        return None
-
-    def get_last_reasoning_output(self):
-        memories = self.get_memories(
-            metadata={'role': 'assistant'},
-            last=1,
-            memory_type='external',
         )
         if memories:
             return memories[0]['content']

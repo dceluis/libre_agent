@@ -11,7 +11,7 @@ Use this tool to add a memory to the system.
 
     <guidelines>
 - If in doubt, store ephemeral updates as 'reflection' and more permanent data as long_term with the relevant scope.
-- 'reflection' memoriess will be automatically added to the current working memory.
+- 'reflection' memories will be automatically added to the current working memory.
     </guidelines>
     </description>
     <parameters>
@@ -52,7 +52,16 @@ Use this tool to add a memory to the system.
         self.working_memory = working_memory
         self.mode = mode
 
+    def validate_role(self, role):
+        valid_roles = ['reflection', 'episodic', 'semantic', 'procedural']
+        if role and role in valid_roles:
+            return role
+        else:
+            return 'reflection'
+
     def run(self, unit_name, content, temporal_scope='short_term', role='reflection', priority_level='BACKGROUND', **kwargs):
+        role = self.validate_role(role)
+
         metadata = {
             'temporal_scope': temporal_scope,
             'priority_level': priority_level,

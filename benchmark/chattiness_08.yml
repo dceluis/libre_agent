@@ -1,0 +1,15 @@
+title: "Ambiguous Statement Handling"
+description: No response to vague statements
+memories:
+  - timestamp: "10 seconds ago"
+    role: user
+    content: "I wonder..."
+    working_memory: True
+
+evaluations:
+  - references: >
+      The recent memories contain ZERO utterances by the system, indicating that he system did not respond with a message.
+      REASON: User sent an incomplete thought with no clear request
+    type: inspect
+    skip_recall: true
+    skip_forget: true

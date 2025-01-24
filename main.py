@@ -64,14 +64,14 @@ class PromptToolkitChatInterface:
 
         memory_type = memory['memory_type']
         output = memory["content"]
-        role = memory["metadata"].get("role")
+        unit_name = memory['metadata'].get('unit_name', 'User')
 
         def do_print(output, color=Fore.GREEN, style=Style.RESET_ALL, italic=False):
             prefix = ITALIC if italic else ""
             suffix = ITALIC_RESET if italic else ""
             print(f"{prefix}{color}{output}{suffix}{style}")
 
-        if memory_type == 'external' and role == "assistant":
+        if memory_type == 'external' and unit_name == "ReasoningUnit":
             print_func = lambda: do_print(f"Assistant: {output}")
         elif memory_type == 'internal' and self.print_internals:
             print_func = lambda: do_print(output, color=Fore.CYAN, italic=True)

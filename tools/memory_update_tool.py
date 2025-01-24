@@ -8,7 +8,10 @@ class MemoryUpdateTool:
 <tool>
     <name>Memory Update Tool</name>
     <description>This tool can update a RECALLED memory's metadata and content.</description>
-    <guidelines>Use this tool often to keep memories up-to-date with the latest information.</guidelines>
+    <guidelines>
+Use this tool often to keep memories up-to-date with the latest information.
+You can only update memories that are marked as 'recalled' from the Recalled Memories section.
+    </guidelines>
     <parameters>
         <parameter>
             <name>memory_id</name>

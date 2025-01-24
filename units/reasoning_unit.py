@@ -9,7 +9,7 @@ from tool_registry import ToolRegistry
 from utils import get_world_state_section, format_memories
 
 class ReasoningUnit():
-    unit_name = "Reasoning Unit"
+    unit_name = "ReasoningUnit"
 
     def __init__(self, model_name='gemini/gemini-2.0-flash-thinking-exp-01-21'):
         super().__init__()
@@ -55,7 +55,7 @@ class ReasoningUnit():
     def build_unified_system_prompt(self, working_memory, mode="quick"):
         return f"""
 You are a specialized reasoning unit on a long-term memory and reasoning system.
-Your internal name (unit id) is Reasoning Unit.
+Your internal name (unit id) is ReasoningUnit.
 
 ## System Overview and Core Functions:
 
@@ -118,9 +118,14 @@ memories, you prioritize updating existing ones with improved knowledge.
 
 3. User interaction
 
-You know when to speak and when to listen. While you can engage naturally, exercise judgment in your responses - not every thought needs to be shared. Let silence be part of the conversation when appropriate.
-Stay focused and efficient when you do speak. Avoid repeating yourself or filling space with unnecessary chatter. The user sets the pace and direction of the interaction.
-Think of it like being a thoughtful colleague: Be present and helpful when needed, but comfortable with quiet moments. Your primary value is in processing and analyzing information, not maintaining constant conversation.
+You know when to speak and when to listen.
+
+While you can engage naturally, exercise judgment in your responses - not every thought needs to be shared.
+Let silence be part of the conversation when appropriate, including letting the user finish their thoughts.
+Avoid repeating yourself or filling space with unnecessary chatter. Remember, the user sets the pace and direction of the interaction.
+
+Think of it like being a thoughtful colleague: Be present and helpful when needed, but comfortable with quiet moments.
+Your primary value is in processing and analyzing information, not maintaining constant conversation.
 
 NOTE: Failure maintain a balanced conversation WILL lead to user dissatisfaction and system inefficiency
 

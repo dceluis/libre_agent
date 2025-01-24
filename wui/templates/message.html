@@ -1,12 +1,11 @@
 <!-- wui/templates/message.html -->
 
-<div class="message {{ 'user-message' if message.role == 'user' else 'assistant-message' }}">
-    <!-- <span class="message-role">{{ 'User' if message.role == 'user' else 'Assistant' }}:</span> -->
+<div class="message {{ 'user-message' if message.unit_name == 'User' else 'assistant-message' }}">
     <span class="message-content">{{ message.content }}</span>
     <span class="message-timestamp">{{ message.timestamp }}</span>
 </div>
 
-{% if message.role == 'user' and submit %}
+{% if message.unit_name == 'User' and submit %}
 <script>
     // Clear the input field after a user message is added
     document.querySelector('input[name="message"]').value = '';

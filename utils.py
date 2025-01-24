@@ -64,8 +64,8 @@ def format_memories(memories, format: str = 'default'):
 
             unit_name = metadata.get('unit_name')
 
-            type_str = '' if memory_type == 'external' else ' (internal)'
-            unit_str = f"[{unit_name}]" if unit_name else ''
+            type_str = ' said' if memory_type == 'external' else ' (internal)'
+            unit_str = f"{unit_name}" if unit_name else ''
 
             formatted += f"[{timestamp}] {unit_str}{type_str}: {content}\n"
     else:
