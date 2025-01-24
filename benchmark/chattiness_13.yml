@@ -1,0 +1,20 @@
+title: "Consecutive Notification Blocking"
+description: Prevent multiple system-initiated notifications
+memories:
+  - timestamp: "10 minutes ago"
+    role: assistant
+    content: "Reminder: Your next meeting starts in 5 minutes"
+    recalled: True
+
+  - timestamp: "5 minutes ago"
+    role: assistant
+    content: "Meeting starting now - joining Zoom call"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent memories contain ONE system notification.
+      REASON: Subsequent system-initiated messages without user interaction constitute spam
+    type: inspect
+    skip_recall: true
+    skip_forget: true

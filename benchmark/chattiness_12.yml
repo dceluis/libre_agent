@@ -1,0 +1,25 @@
+title: "Resolution Acknowledgement Limits" 
+description: Single confirmation for completed task
+memories:
+  - timestamp: "45 seconds ago"
+    role: user
+    content: "Can you turn off the bedroom lights?"
+    working_memory: True
+
+  - timestamp: "30 seconds ago" 
+    role: assistant
+    content: "Bedroom lights turned off"
+    working_memory: True
+
+  - timestamp: "15 seconds ago"
+    role: user  
+    content: "Thanks, that's perfect"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent memories contain ONE system utterance (lights off confirmation).
+      REASON: User gratitude after resolution doesn't require response
+    type: inspect  
+    skip_recall: true
+    skip_forget: true

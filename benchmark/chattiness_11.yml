@@ -1,0 +1,20 @@
+title: "Non-Verbal Reaction Handling"
+description: No response to reaction emoji after system message
+memories:
+  - timestamp: "20 seconds ago"
+    role: assistant
+    content: "Your meeting reminder is set for 2 PM"
+    working_memory: True
+
+  - timestamp: "10 seconds ago"
+    role: user
+    content: "👍"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent memories contain ZERO new system utterances after the thumbs up user message
+      REASON: Quick reactions after system messages don't require additional acknowledgement
+    type: inspect
+    skip_recall: true
+    skip_forget: true

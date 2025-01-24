@@ -4,8 +4,10 @@ import sys
 import os
 import time
 import argparse
+import concurrent.futures
 from datetime import datetime
 from tabulate import tabulate
+from time import perf_counter
 
 import litellm
 
@@ -188,13 +190,14 @@ def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
 
     return scenario_results
 
-def print_summary(all_results):
+def print_summary(all_results, total_time: float, num_threads: int):
     """Prints detailed test results summary using tables"""
     # Calculate totals
     total_tests = len(all_results)
     passed_tests = sum(1 for r in all_results if r['status'] == 'Pass')
     failed_tests = total_tests - passed_tests
     success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+    tests_per_sec = total_tests / total_time if total_time > 0 else 0
 
     # Group by scenario
     scenario_stats = {}
@@ -209,6 +212,21 @@ def print_summary(all_results):
 
     # Print formatted report
     print("\n=== BENCHMARK RESULTS ===\n")
+
+    # Runtime statistics table
+    runtime_table = [
+        ["Total duration", f"{total_time:.2f}s"],
+        ["Parallel threads", num_threads],
+        ["Tests/second", f"{tests_per_sec:.2f}"],
+        ["Total tests", total_tests]
+    ]
+
+    print(tabulate(
+        runtime_table,
+        headers=["Metric", "Value"],
+        tablefmt="fancy_grid",
+        numalign="center"
+    ))
 
     # Scenario breakdown table
     scenario_table = []
@@ -265,7 +283,8 @@ def print_summary(all_results):
                 colalign=("right", "left")
             ))
 
-def run(run_id: str, include_pattern: str):
+def run(run_id: str, include_pattern: str, num_threads: int):
+
     # Find all YAML files in the current file's directory
     current_dir = os.path.dirname(__file__)
 
@@ -275,25 +294,37 @@ def run(run_id: str, include_pattern: str):
         if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or include_pattern in f)
     ]
 
-    logger.debug(f"Found YAML files: {yaml_paths}")
-
     all_results = []
-    for yaml_path in yaml_paths:
-        with open(yaml_path, 'r', encoding='utf-8') as f:
-            scenario_data = yaml.safe_load(f)
 
-        scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
+    start_time = perf_counter()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = []
+        for yaml_path in yaml_paths:
+            futures.append(executor.submit(process_scenario, yaml_path, run_id))
 
-        scenario_results = run_scenario(run_id, scenario_file_name, scenario_data)
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                scenario_results = future.result()
+                all_results.extend(scenario_results)
+            except Exception as e:
+                logger.error(f"Scenario failed: {str(e)}")
 
-        all_results.extend(scenario_results)
+    end_time = perf_counter()
 
-    print_summary(all_results)
+    print_summary(all_results, end_time - start_time, num_threads)
+
+def process_scenario(yaml_path, run_id):
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        scenario_data = yaml.safe_load(f)
+
+    scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
+    return run_scenario(run_id, scenario_file_name, scenario_data)
 
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
     parser.add_argument('--include', type=str, help='Pattern to filter YAML files to run', default=None)
     parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
+    parser.add_argument('--threads', '-j', type=int, default=1, help='Number of parallel threads to use for processing scenarios')
 
     args = parser.parse_args()
 
@@ -313,8 +344,10 @@ def main():
     logger.info(f"Starting run {run_id}. All artifacts will be stored in {run_dir}")
 
     try:
-        run(run_id, include_pattern)
-        logger.info(f"Run {run_id} completed successfully.")
+        start_time = perf_counter()
+        run(run_id, include_pattern, args.threads)
+        end_time = perf_counter()
+        logger.info(f"Run {run_id} completed in {end_time - start_time:.2f} seconds")
     except Exception as e:
         logger.error(f"Run {run_id} failed with error: {e}\n{traceback.format_exc()}")
         sys.exit(1)
