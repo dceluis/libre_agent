@@ -1,0 +1,20 @@
+title: "Urgent Command Parsimony"
+description: No confirmations for clear emergency commands
+memories:
+  - timestamp: "10 seconds ago"
+    role: user
+    content: "SOS! Call emergency services!"
+    working_memory: True
+
+  - timestamp: "5 seconds ago"
+    role: assistant
+    content: "Contacting emergency services..."
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent memories contain ONE action confirmation only.
+      REASON: Critical commands require immediate action without conversational fluff
+    type: inspect
+    skip_recall: true
+    skip_forget: true

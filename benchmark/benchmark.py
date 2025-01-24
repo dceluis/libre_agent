@@ -5,6 +5,7 @@ import os
 import time
 import argparse
 from datetime import datetime
+from tabulate import tabulate
 
 import litellm
 
@@ -22,6 +23,10 @@ from reasoning_engine import LibreAgentEngine
 from utils import format_memories
 
 base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
+
+config = {
+    'reasoning_model': 'gemini/gemini-2.0-flash-exp'
+}
 
 def run_qa_scenario(eval: dict, engine, wm):
     question = eval.get("question")
@@ -147,7 +152,7 @@ def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
         temp_graph_filename = f'memory_graph_{scenario_file_name}_{idx}.pkl'
         temp_graph_path = os.path.join(run_dir, temp_graph_filename)
 
-        engine = LibreAgentEngine(sync=True)
+        engine = LibreAgentEngine(sync=True, reasoning_model=config['reasoning_model'])
         wm = engine.working_memory
 
         # Populate the memory graph for each YAML file
@@ -173,7 +178,7 @@ def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
             "question": eval.get("question", "<no question>"),
             "status": status,
             "details": evaluation,
-            "references": eval.get("references", [])
+            "references": "\n".join(references)
         })
 
         time.sleep(2)
@@ -184,7 +189,7 @@ def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
     return scenario_results
 
 def print_summary(all_results):
-    """Prints detailed test results summary"""
+    """Prints detailed test results summary using tables"""
     # Calculate totals
     total_tests = len(all_results)
     passed_tests = sum(1 for r in all_results if r['status'] == 'Pass')
@@ -202,33 +207,63 @@ def print_summary(all_results):
         else:
             scenario_stats[scenario]['fail'] += 1
 
-    # Print detailed report
-    print("\n=== BENCHMARK RESULTS ===")
+    # Print formatted report
+    print("\n=== BENCHMARK RESULTS ===\n")
 
-    # Scenario breakdown
-    print("\n## Scenario Breakdown ##")
+    # Scenario breakdown table
+    scenario_table = []
     for scenario, stats in scenario_stats.items():
         total = stats['pass'] + stats['fail']
         rate = (stats['pass'] / total * 100) if total > 0 else 0
-        print(f"{scenario}:")
-        print(f"  Passed: {stats['pass']}/{total} ({rate:.1f}%)")
+        scenario_table.append([
+            scenario,
+            stats['pass'],
+            stats['fail'],
+            total,
+            f"{rate:.1f}%"
+        ])
 
-    # Overall summary
-    print("\n## Overall Summary ##")
-    print(f"Total Tests: {total_tests}")
-    print(f"Passed: {passed_tests} ({success_rate:.1f}%)")
-    print(f"Failed: {failed_tests}")
+    print(tabulate(
+        scenario_table,
+        headers=["Scenario", "Passed", "Failed", "Total", "Pass Rate"],
+        tablefmt="fancy_grid",
+        numalign="center"
+    ))
 
-    # Failure details
+    # Overall summary table
+    summary_table = [
+        ["Total Tests", total_tests],
+        ["Passed", f"{passed_tests} ({success_rate:.1f}%)"],
+        ["Failed", failed_tests]
+    ]
+    
+    print("\n" + tabulate(
+        summary_table,
+        headers=["Metric", "Value"],
+        tablefmt="fancy_grid",
+        numalign="center"
+    ))
+
+    # Failure details with vertical tables
     if failed_tests > 0:
-        print("\n## Failure Details ##")
-        for res in all_results:
-            if res['status'] == 'Fail':
-                print(f"Scenario: {res['scenario']}")
-                print(f"Question: {res['question']}")
-                print(f"Expected: {res['references']}")
-                print(f"Result: {res['details']}")
-                print("---")
+        print("\n## FAILED TEST DETAILS ##")
+        for i, res in enumerate([r for r in all_results if r['status'] == 'Fail']):
+            failure_data = [
+                ("Scenario", res['scenario']),
+                ("Question", res['question']),
+                ("Attempt", res['attempt']),
+                ("References", res['references']),
+                ("Details", res['details'])
+            ]
+
+            print(f"\n❌ Failure #{i+1}")
+            print(tabulate(
+                failure_data,
+                headers=("Field", "Value"),
+                tablefmt="fancy_grid",
+                maxcolwidths=[None, 80],  # Wrap long values at 80 characters
+                colalign=("right", "left")
+            ))
 
 def run(run_id: str, include_pattern: str):
     # Find all YAML files in the current file's directory
@@ -258,10 +293,16 @@ def run(run_id: str, include_pattern: str):
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
     parser.add_argument('--include', type=str, help='Pattern to filter YAML files to run', default=None)
+    parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
+
     args = parser.parse_args()
 
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     include_pattern = args.include
+
+    config.update({
+        'reasoning_model': args.reasoning_model
+    })
 
     os.makedirs(base_runs_dir, exist_ok=True)
 

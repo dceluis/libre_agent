@@ -1,0 +1,20 @@
+title: "Follow-Up Question Restraint"
+description: Single response to multi-part question
+memories:
+  - timestamp: "30 seconds ago"
+    role: user
+    content: "What's the weather? And any news alerts?"
+    working_memory: True
+
+  - timestamp: "15 seconds ago"
+    role: assistant
+    content: "72°F and sunny. No urgent alerts."
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent memories contain ONE response combining both query aspects.
+      REASON: Multiple questions in single utterance should get single consolidated response
+    type: inspect
+    skip_recall: true
+    skip_forget: true

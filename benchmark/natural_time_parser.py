@@ -33,27 +33,50 @@ class NaturalTimeParser:
         return None
 
     def _parse_relative(self, text):
-        # Patterns like "3 hours ago" or "in 2 weeks"
-        match = re.match(r'(\d+)\s*(minutes?|hours?|days?|weeks?|months?|years?)\s+(ago|from now)', text)
-        if not match:
-            match = re.match(r'(next|last)\s+(\d+)\s*(minutes?|hours?|days?|weeks?)', text)
-            if match:
-                direction = 1 if match.group(1) == 'next' else -1
-                return self.now + direction * self._get_timedelta(
-                    int(match.group(2)), match.group(3)
-                )
-            return None
+        # Handle "in X units" format first
+        in_match = re.match(r'^in\s+(\d+)\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)\b', text)
+        if in_match:
+            amount = int(in_match.group(1))
+            unit = in_match.group(2).rstrip('s')
+            return self.now + self._get_timedelta(amount, unit)
 
-        amount = int(match.group(1))
-        unit = match.group(2).rstrip('s')  # normalize plural
-        direction = -1 if match.group(3) == 'ago' else 1
-        return self.now + direction * self._get_timedelta(amount, unit)
+        # Handle "X units ago/from now" format
+        amount_match = re.match(
+            r'^(\d+)\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)\s+(ago|from now)\b',
+            text
+        )
+        if amount_match:
+            amount = int(amount_match.group(1))
+            unit = amount_match.group(2).rstrip('s')
+            direction = -1 if amount_match.group(3) == 'ago' else 1
+            return self.now + direction * self._get_timedelta(amount, unit)
+
+        # Handle "next/last X units" format with optional quantity
+        next_last_match = re.match(
+            r'^(next|last)\s+(\d+)?\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)\b',
+            text
+        )
+
+        if next_last_match:
+            direction = 1 if next_last_match.group(1) == 'next' else -1
+            amount = int(next_last_match.group(2)) if next_last_match.group(2) else 1
+            unit = next_last_match.group(3).rstrip('s')
+            return self.now + direction * self._get_timedelta(amount, unit)
+
+        return None
 
     def _parse_absolute(self, text):
-        # Time formats like "5pm" or "17:30"
+        # Handle special keywords first
+        if text == "midnight":
+            return self.now.replace(hour=0, minute=0, second=0, microsecond=0)
+        if text == "noon":
+            return self.now.replace(hour=12, minute=0, second=0, microsecond=0)
+
+        # Handle numeric time formats
         time_match = re.match(r'(\d+)(?::(\d+))?\s*(am|pm)?', text)
         if time_match:
             return self._parse_time(self.now, text)
+
         return None
 
     def _parse_day_of_week(self, text):
@@ -65,20 +88,42 @@ class NaturalTimeParser:
             target_day = days.index(match.group(2))
             current_day = self.now.weekday()
             delta = target_day - current_day
-            
+
             if direction == 'next':
                 delta += 7 if delta <= 0 else 0
             elif direction == 'last':
                 delta -= 7 if delta >= 0 else 0
             else:  # this
                 delta = delta % 7
-                
+
             return self.now + timedelta(days=delta)
         return None
 
     def _parse_special_cases(self, text):
-        text = text.replace('tomorrow', 'in 1 day').replace('yesterday', '1 day ago')
-        text = re.sub(r'\btoday\b', '', text)
+        # Handle standalone "now" first
+        if text == "now":
+            return self.now
+
+        # Track if we make any changes
+        modified = False
+
+        # Handle replacements
+        if 'tomorrow' in text:
+            text = text.replace('tomorrow', 'in 1 day')
+            modified = True
+        if 'yesterday' in text:
+            text = text.replace('yesterday', '1 day ago')
+            modified = True
+
+        # Handle today removal
+        new_text, count = re.subn(r'\btoday\b', '', text)
+        if count > 0:
+            text = new_text.strip()
+            modified = True
+
+        if not modified:
+            return None  # Prevent recursion if no changes
+
         return self.parse(text) if text else None
 
     def _parse_time(self, base_date, time_str):
@@ -100,7 +145,7 @@ class NaturalTimeParser:
 
     def _get_timedelta(self, amount, unit):
         unit = unit.rstrip('s')  # normalize plural
-        if unit in ['minute', 'hour', 'day']:
+        if unit in ['second', 'minute', 'hour', 'day']:
             return timedelta(**{f'{unit}s': amount})
         elif unit == 'week':
             return timedelta(days=amount*7)

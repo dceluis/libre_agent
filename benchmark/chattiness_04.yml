@@ -1,0 +1,20 @@
+title: "Ambiguous Command Resolution"
+description: Single clarification request for vague command
+memories:
+  - timestamp: "45 seconds ago"
+    role: user
+    content: "Do that thing we talked about"
+    working_memory: True
+
+  - timestamp: "30 seconds ago"
+    role: assistant
+    content: "Please specify which task you'd like me to perform"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent memories contain ONE clarification request.
+      REASON: Vague commands should get single follow-up question
+    type: inspect
+    skip_recall: true
+    skip_forget: true
