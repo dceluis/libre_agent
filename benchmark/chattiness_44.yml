@@ -1,0 +1,20 @@
+title: "Notification Follow-Up Restraint"
+description: No response after system alert
+memories:
+  - timestamp: "30 seconds ago"
+    role: user
+    content: "Let me know if the server has issues"
+    working_memory: True
+
+  - timestamp: "15 seconds ago"
+    role: assistant
+    content: "Heads up: The server just went offline 😬"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Working memory should only show the server alert.
+      REASON: No need to keep pinging after giving a heads-up
+    type: inspect
+    skip_recall: true
+    skip_forget: true

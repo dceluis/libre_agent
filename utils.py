@@ -4,7 +4,7 @@ import importlib
 import time
 from pathlib import Path
 from logger import logger
-from memory_graph import memory_graph
+from memory_graph import MemoryGraph
 import re
 from tool_registry import ToolRegistry
 
@@ -32,7 +32,7 @@ def load_tools():
 
 def get_world_state_section():
     current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    stats = memory_graph.get_stats()
+    stats = MemoryGraph().get_stats()
     world_state = f"""
 - **Current Time**: {current_time}
 - **Memory Statistics**:

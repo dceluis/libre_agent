@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from memory_graph import memory_graph
+from memory_graph import MemoryGraph
 from logger import logger
 
 # Configuration
@@ -23,7 +23,8 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), 't
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if graph_file:
-        memory_graph.set_graph_file_path(graph_file)
+        MemoryGraph.set_graph_file(graph_file)
+
         logger.info(f"Loaded memory graph from {graph_file}")
     yield
 
@@ -37,6 +38,7 @@ async def memory_inspector(request: Request):
 @app.get("/api/memories", response_class=JSONResponse)
 async def get_memories(request: Request):
     try:
+        memory_graph = MemoryGraph()
         memories = memory_graph.get_memories(sort='timestamp', reverse=False)
         formatted = {
             "memories": [{
@@ -48,7 +50,7 @@ async def get_memories(request: Request):
             } for mem in memories],
         }
 
-        return { 'memories': formatted, "graph_file": memory_graph.graph_file }
+        return { 'memories': formatted, "graph_file": graph_file }
     except Exception as e:
         return {"error": str(e)}, 500
 

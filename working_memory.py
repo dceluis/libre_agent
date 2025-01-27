@@ -76,6 +76,8 @@ class WorkingMemory:
 
         logger.info(f"Added memory to WorkingMemory {self.id}")
 
+        return memory
+
     def add_interaction(self, role, content, parent_memory_ids=None, metadata=None):
         if parent_memory_ids is None:
             parent_memory_ids = []

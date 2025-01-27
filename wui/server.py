@@ -15,8 +15,7 @@ from contextlib import asynccontextmanager
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from reasoning_engine import LibreAgentEngine
-from memory_graph import memory_graph
-from logger import logger
+from memory_graph import MemoryGraph
 
 # Configuration defaults
 quick_schedule = 5
@@ -33,7 +32,6 @@ async def lifespan(app: FastAPI):
     engine = LibreAgentEngine(
         quick_schedule=quick_schedule,
         deep_schedule=deep_schedule,
-        memory_graph_file=graph_file,
         reasoning_model=reasoning_model
     )
     
@@ -55,7 +53,7 @@ active_connections: List[WebSocket] = []
 
 def get_chat_history():
     """Retrieve chat history from memory graph"""
-    memories = memory_graph.get_memories(memory_type='external', sort='timestamp', reverse=False)
+    memories = MemoryGraph().get_memories(memory_type='external', sort='timestamp', reverse=False)
     return [
         {
             "unit_name": mem['metadata'].get('unit_name', 'User'),

@@ -77,4 +77,4 @@ You are an advanced image decription module.
             return False
 
 # Register the tool
-ToolRegistry.register_tool(PeekTool)
+# ToolRegistry.register_tool(PeekTool)

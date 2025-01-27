@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 from litellm import completion
 
@@ -9,7 +8,7 @@ from logger import logger
 
 class Evaluator:
 
-    def __init__(self, model="gemini/gemini-2.0-flash-thinking-exp-01-21"):
+    def __init__(self, model="gemini/gemini-2.0-flash-exp"):
         self.model = model
 
     def evaluate_answer(self, scenario: str, references: list | None = None) -> str:
@@ -34,12 +33,11 @@ Evaluate correctness, completeness, and recall fidelity, using the following
 references as metrics (these are ground truths or relevant info):
 {os.linesep.join(references)}
 
-Return "Pass" or "Fail" (don't prefix anything) on a new line,
-followed by an optional comment on your evaluation.
+Return an optional comment on your evaluation.
+Followed by "Pass" or "Fail" alone on a new line, ending your response.
 """
 
         try:
-            logger.debug(f"Prompt: {user_prompt}")
 
             resp = completion(
                 model=self.model,
@@ -49,14 +47,13 @@ followed by an optional comment on your evaluation.
                 ],
             )
 
-            logger.debug(f"Response: {resp}")
+            logger.info(
+                f"Prompt:\n{user_prompt}"
+                f"\n\n"
+                f"Response:\n{resp}"
+            )
 
-            content = resp["choices"][0]["message"]["content"].strip()
-
-            if re.match(r'^(pass|fail)', content, re.IGNORECASE):
-                return content
-            else:
-                return f"Error - Bad format ({content})"
+            return resp["choices"][0]["message"]["content"].strip()
 
         except Exception as e:
             return f"Error - {e}"

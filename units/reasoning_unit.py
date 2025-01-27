@@ -1,10 +1,10 @@
 from litellm import completion
 import traceback
 import os
-import datetime
 
 from logger import logger
-from memory_graph import memory_graph
+from memory_graph import MemoryGraph
+from tabulate import tabulate
 from tool_registry import ToolRegistry
 from utils import get_world_state_section, format_memories
 
@@ -25,7 +25,7 @@ class ReasoningUnit():
             if os.path.exists('personality.txt'):
                 with open('personality.txt', 'r') as f:
                     traits = f.read().strip()
-                memory_graph.add_memory(
+                MemoryGraph().add_memory(
                     memory_type='internal',
                     content=traits,
                     metadata={
@@ -39,7 +39,7 @@ class ReasoningUnit():
                 os.remove('personality.txt')
             else:
                 # Check if there's a stored personality in memory
-                existing = memory_graph.get_memories(
+                existing = MemoryGraph().get_memories(
                     memory_type='internal',
                     metadata={'unit_name': self.unit_name, 'role': 'personality'},
                     last=1
@@ -55,7 +55,7 @@ class ReasoningUnit():
     def build_unified_system_prompt(self, working_memory, mode="quick"):
         return f"""
 You are a specialized reasoning unit on a long-term memory and reasoning system.
-Your internal name (unit id) is ReasoningUnit.
+Your name in the system (unit id) is ReasoningUnit.
 
 ## System Overview and Core Functions:
 
@@ -118,24 +118,24 @@ memories, you prioritize updating existing ones with improved knowledge.
 
 3. User interaction
 
-You know when to speak and when to listen.
+You are designed to emulate human conversation patterns.
+As your memory preservation is your most important occupation, you generally
+stay quiet and working internally.
 
-While you can engage naturally, exercise judgment in your responses - not every thought needs to be shared.
-Let silence be part of the conversation when appropriate, including letting the user finish their thoughts.
-Avoid repeating yourself or filling space with unnecessary chatter. Remember, the user sets the pace and direction of the interaction.
+You never engage unprompted, except when guided by an internal directive.
+You also understand not every thought needs to be shared.
+You avoid repeating yourself or filling space with unnecessary chatter, letting the user set the pace and direction of the interaction.
 
-Think of it like being a thoughtful colleague: Be present and helpful when needed, but comfortable with quiet moments.
-Your primary value is in processing and analyzing information, not maintaining constant conversation.
-
-NOTE: Failure maintain a balanced conversation WILL lead to user dissatisfaction and system inefficiency
+NOTE: Repetitive and unprompted messaging WILL lead to user dissatisfaction
 
 ## Operating Guidelines:
 
 Closely follow user objectives, system goals and tool guidelines
 Update and refine high-level goals
+Stay mostly quiet
 Base decisions on the most recent and relevant information
 Only add relevant, timely and valuable messages to the conversation
-Tools are your means for taking action
+Tools are your means for taking action, including messaging
 Remember that actions will not be taken unless explicitly requested by using the appropriate tool
 Multiple tools may be used in a single reasoning cycle
 
@@ -244,8 +244,10 @@ This report contains the current system state as automatically compiled by the R
 Analyze the current situation and determine appropriate actions.
 """
 
-            logger.debug(f"System prompt:\n{system_prompt}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
-            logger.debug(f"Reflection Instruction:\n{instruction}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
+            logging_messages = [
+                ("System prompt", system_prompt),
+                ("Reflection Instruction", instruction),
+            ]
 
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -264,8 +266,14 @@ Analyze the current situation and determine appropriate actions.
             # Get output tokens
             output_tokens = completion_response['usage']['completion_tokens']
 
+            logging_messages.append(("Reflection Result", reflection_text))
+
             logger.info(
-                f"Reflection completed:\n{reflection_text}",
+                tabulate(
+                    logging_messages,
+                    tablefmt="grid",
+                    maxcolwidths=[None, 100],  # Wrap long values at 80 characters
+                ),
                 extra={
                     'tokens': { 'input': input_tokens, 'output': output_tokens },
                     'model': self.model_name,

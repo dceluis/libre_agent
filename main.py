@@ -3,6 +3,7 @@ import schedule
 import time
 import sys
 import argparse
+from memory_graph import MemoryGraph
 from reasoning_engine import LibreAgentEngine
 
 # import litellm
@@ -87,11 +88,12 @@ async def main(deep_schedule, quick_schedule, print_internals, memory_graph_file
     engine = LibreAgentEngine(
         deep_schedule=deep_schedule,
         quick_schedule=quick_schedule,
-        memory_graph_file=memory_graph_file,
         reasoning_model=reasoning_model
     )
 
     working_memory = engine.working_memory
+
+    MemoryGraph.set_graph_file(memory_graph_file)
 
     chat_interface = PromptToolkitChatInterface(working_memory)
     chat_interface.print_internals = print_internals

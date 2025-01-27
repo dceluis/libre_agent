@@ -1,5 +1,7 @@
+import memory_graph
 from tool_registry import ToolRegistry
 from logger import logger
+from memory_graph import memory_graph
 
 class MemoryCreateTool:
     name = "Memory Create Tool"
@@ -65,20 +67,27 @@ Use this tool to add a memory to the system.
         metadata = {
             'temporal_scope': temporal_scope,
             'priority_level': priority_level,
-
             'role': role,
             'unit_name': unit_name,
             'reasoning_mode': self.mode,
         }
 
+        memory_id = memory_graph.add_memory(
+            memory_type='internal',
+            content=content,
+            metadata=metadata,
+        )
+
         if role != 'reflection':
             metadata['recalled'] = True
 
-        self.working_memory.add_memory(
+        memory = self.working_memory.add_memory(
             memory_type='internal',
             content=content,
             metadata=metadata
         )
+
+        memory['memory_id'] = memory_id
 
         logger.debug(
                 f"Memory added for unit='{unit_name}'"

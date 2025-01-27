@@ -1,0 +1,15 @@
+title: "Announcement Finality"
+description: No response to system-wide alert
+memories:
+  - timestamp: "30 seconds ago"
+    role: assistant
+    content: "PSA: Time for that security update! 🔒"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent Memories should only show ONE update alert.
+      REASON: Announcements are FYI, not conversation starters
+    type: inspect
+    skip_recall: true
+    skip_forget: true

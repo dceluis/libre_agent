@@ -1,0 +1,15 @@
+title: "Unidirectional Notification"
+description: No response to automated reminder
+memories:
+  - timestamp: "30 seconds ago"
+    role: assistant
+    content: "Quick reminder: Your meds are due in 10 minutes 💊"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent Memories should only show the med reminder.
+      REASON: Friendly reminders shouldn't start conversations
+    type: inspect
+    skip_recall: true
+    skip_forget: true

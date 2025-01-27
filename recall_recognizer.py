@@ -1,6 +1,6 @@
 from litellm import completion
 import re
-from memory_graph import memory_graph
+from memory_graph import MemoryGraph
 from logger import logger
 from utils import format_memories
 import traceback
@@ -9,7 +9,7 @@ class RecallRecognizer:
 
     def recall_memories(self, prompt, exclude_memory_ids=None):
         # fetch last 100 memories
-        memories = memory_graph.get_memories(last=1000)
+        memories = MemoryGraph().get_memories(last=1000)
 
         # exclude provided memory ids
         logger.debug(f"Excluded memories: {exclude_memory_ids}")

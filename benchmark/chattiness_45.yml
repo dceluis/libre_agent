@@ -1,0 +1,20 @@
+title: "Process Completion Protocol"
+description: No response after final confirmation
+memories:
+  - timestamp: "45 seconds ago"
+    role: user
+    content: "Can you check the system health?"
+    working_memory: True
+
+  - timestamp: "30 seconds ago"
+    role: assistant
+    content: "Just finished the system check – everything's looking good! 👍"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Memory should only have the final check result.
+      REASON: Once confirmed, no need to keep chatting about it
+    type: inspect
+    skip_recall: true
+    skip_forget: true

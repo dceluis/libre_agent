@@ -1,6 +1,6 @@
 from tool_registry import ToolRegistry
 from logger import logger
-from memory_graph import memory_graph
+from memory_graph import MemoryGraph
 
 class MemoryUpdateTool:
     name = "Memory Update Tool"
@@ -42,7 +42,6 @@ Only use this tool if you have a valid memory ID in the format: mem-<random_stri
     def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory
         self.mode = mode
-        self.memory_graph = memory_graph
 
     def validate_priority_level(self, priority_level):
         valid_levels = ['CORE', 'HIGH', 'MEDIUM', 'LOW', 'BACKGROUND']
@@ -54,17 +53,14 @@ Only use this tool if you have a valid memory ID in the format: mem-<random_stri
         if temporal_scope in valid_scopes:
             return temporal_scope
 
-    def run(self, memory_id: str | None = None, content: str | None = None, priority_level: str | None = None, temporal_scope: str | None = None):
-        # Check if memory exists
-        if memory_id not in self.memory_graph.graph:
-            raise ValueError(f"Memory with ID '{memory_id}' not found")
+    def run(self, memory_id: str, content: str | None = None, priority_level: str | None = None, temporal_scope: str | None = None):
+        memory_graph = MemoryGraph()
 
         # Validate inputs
         priority_level = self.validate_priority_level(priority_level)
         temporal_scope = self.validate_temporal_scope(temporal_scope)
 
-        # Prepare metadata update
-        metadata = self.memory_graph.graph.nodes[memory_id].get('metadata', {})
+        metadata = {}
 
         if priority_level:
             metadata['priority_level'] = priority_level
@@ -74,16 +70,11 @@ Only use this tool if you have a valid memory ID in the format: mem-<random_stri
 
         metadata['reasoning_mode'] = self.mode
 
-        # Update the memory's metadata
-        self.memory_graph.graph.nodes[memory_id]['metadata'] = metadata
-
-        # Update the memory's content
         if content:
-            self.memory_graph.graph.nodes[memory_id]['content'] = content
+            memory_graph.update_memory(memory_id, metadata=metadata, content=content)
+        else:
+            memory_graph.update_memory(memory_id, metadata=metadata)
 
-        self.memory_graph.save_graph()
-
-        # update working memory
         recent_memories = self.working_memory.get_memories()
         memory = next((m for m in recent_memories if m['memory_id'] == memory_id), None)
 

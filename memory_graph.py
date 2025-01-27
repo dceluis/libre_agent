@@ -1,58 +1,42 @@
 import networkx as nx
 import pickle
+import contextvars
 from pathlib import Path
 import threading
 import time
 import secrets
+# Context variable to store graph instances
+memory_graph_file_ctx = contextvars.ContextVar('memory_graph_file')
+
 from logger import logger
 
 class MemoryGraph:
-    _instance = None
-    _lock = threading.Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super(MemoryGraph, cls).__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
-
     def __init__(self):
-        if self._initialized:
-            return
+        self.data_dir = Path("user_data")
+        self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        data_dir = Path("user_data")
-        data_dir.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
 
-        self.graph_file = data_dir / "memory_graph.pkl"
-        self.graph = nx.DiGraph()
-        self.load_graph()
-
-        self._initialized = True
-
-    def set_graph_file_path(self, new_path: str):
-        with self._lock:
-            self.graph_file = Path(new_path)
-
-            data_dir = self.graph_file.parent
-            data_dir.mkdir(parents=True, exist_ok=True)
-
-            self.load_graph()
-            logger.info(f"Switched memory graph path to {self.graph_file}.")
+    @classmethod
+    def set_graph_file(cls, graph_file):
+        memory_graph_file_ctx.set(graph_file)
 
     def load_graph(self):
-        if self.graph_file.exists():
-            with open(self.graph_file, "rb") as f:
-                self.graph = pickle.load(f)
-            logger.info("Memory graph loaded successfully.")
-        else:
-            self.graph = nx.DiGraph()
-            logger.info("Initialized a new memory graph.")
+        graph_file = self.data_dir / memory_graph_file_ctx.get()
 
-    def save_graph(self):
-        with open(self.graph_file, "wb") as f:
-            pickle.dump(self.graph, f)
+        if graph_file.exists():
+            logger.info("Memory graph loaded successfully.")
+            with open(graph_file, "rb") as f:
+                return pickle.load(f)
+        else:
+            logger.info("Initializing a new memory graph.")
+            return nx.DiGraph()
+
+    def save_graph(self, graph):
+        graph_file = self.data_dir / memory_graph_file_ctx.get()
+
+        with open(graph_file, "wb") as f:
+            pickle.dump(graph, f)
         logger.info("Memory graph saved successfully.")
 
     def generate_memory_id(self):
@@ -82,8 +66,10 @@ class MemoryGraph:
             if metadata.get('reasoning_mode') is None:
                 metadata['reasoning_mode'] = 'none'
 
+            graph = self.load_graph()
+
             # Add memory node with attributes
-            self.graph.add_node(
+            graph.add_node(
                 memory_id,
                 memory_type=memory_type,  # 'external', 'internal'
                 content=content,
@@ -96,35 +82,56 @@ class MemoryGraph:
 
             # Add edges from parent memories to this memory
             for parent_id in parent_memory_ids:
-                self.graph.add_edge(parent_id, memory_id, relation_type='memory_flow')
+                graph.add_edge(parent_id, memory_id, relation_type='memory_flow')
                 logger.info(f"Created edge from {parent_id} to {memory_id}")
 
-            self.save_graph()
+            self.save_graph(graph)
 
             return memory_id
 
-    # def update_memory(self, memory_id, **kwargs):
-    #     memory = self.graph.nodes[memory_id]
-    #
-    #     for key, value in kwargs.items():
-    #         memory[key] = value
-    #
-    #     logger.info(f"Updated memory {memory_id} with attributes: {kwargs}")
-    #     self.save_graph()
+    def update_memory(self, memory_id: str, metadata: dict, **kwargs):
+        with self._lock:
+            graph = self.load_graph()
+
+            # Check if memory exists
+            if memory_id not in graph:
+                raise ValueError(f"Memory with ID '{memory_id}' not found")
+
+            memory = graph.nodes[memory_id]
+
+            memory_metadata = graph.nodes[memory_id].get('metadata', {})
+
+            for key, value in metadata.items():
+                memory_metadata[key] = value
+            memory['metadata'] = memory_metadata
+
+            for key, value in kwargs.items():
+                memory[key] = value
+
+            logger.info(f"Updated memory {memory_id} with attributes: {kwargs}")
+
+            self.save_graph(graph)
+
+            return True
 
     def remove_memory(self, memory_id):
         with self._lock:
-            if memory_id not in self.graph:
+            graph = self.load_graph()
+
+            if memory_id not in graph:
                 logger.warning(f"Attempted to remove non-existent memory: {memory_id}")
                 return False
 
-            self.graph.remove_node(memory_id)
+            graph.remove_node(memory_id)
             logger.info(f"Removed memory {memory_id} and its associated edges")
-            self.save_graph()
+
+            self.save_graph(graph)
             return True
 
     def get_all_memories(self):
-        result = [ {'memory_id': node, **data} for node, data in self.graph.nodes(data=True) ]
+        graph = self.load_graph()
+
+        result = [ {'memory_id': node, **data} for node, data in graph.nodes(data=True) ]
         logger.info(f"get_all_memories called. Returned {len(result)} memories.")
         return result
 
@@ -132,8 +139,10 @@ class MemoryGraph:
         """
         Retrieve memories with optional filtering by memory_type and metadata, with sorting and limiting.
         """
+        graph = self.load_graph()
+
         memories = [
-            {'memory_id': node, **data} for node, data in self.graph.nodes(data=True)
+            {'memory_id': node, **data} for node, data in graph.nodes(data=True)
             if (memory_type is None or data.get('memory_type') == memory_type) and
             (metadata is None or all(data.get('metadata', {}).get(k) == v for k, v in metadata.items()))
         ]
@@ -161,16 +170,18 @@ class MemoryGraph:
         return result
 
     def get_stats(self):
+        graph = self.load_graph()
+
         """Return statistics about the memory graph"""
         stats = {
-            'total_memories': self.graph.number_of_nodes(),
-            'total_connections': self.graph.number_of_edges(),
+            'total_memories': graph.number_of_nodes(),
+            'total_connections': graph.number_of_edges(),
             'memory_type_distribution': {},
             'role_distribution': {}
         }
 
         # Calculate memory type distribution
-        for node, data in self.graph.nodes(data=True):
+        for _, data in graph.nodes(data=True):
             mem_type = data.get('memory_type', 'unknown')
             stats['memory_type_distribution'][mem_type] = stats['memory_type_distribution'].get(mem_type, 0) + 1
 
@@ -181,7 +192,5 @@ class MemoryGraph:
         logger.info(f"Generated memory graph statistics: {stats}")
         return stats
 
-def setup_memory_graph():
-    return MemoryGraph()
 
-memory_graph = setup_memory_graph()
+memory_graph = MemoryGraph()

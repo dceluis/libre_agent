@@ -3,7 +3,7 @@ import schedule
 import threading
 import asyncio
 from queue import PriorityQueue
-from memory_graph import memory_graph
+from memory_graph import MemoryGraph
 from working_memory import WorkingMemory, WorkingMemoryAsync
 from logger import logger
 from utils import load_units, load_tools, maybe_invoke_tool
@@ -11,15 +11,37 @@ from recall_recognizer import RecallRecognizer
 from forget_recognizer import ForgetRecognizer
 from units.reasoning_unit import ReasoningUnit
 
+import uuid
+from contextvars import ContextVar, copy_context
+
+ctx_default_value = {
+    'mode': 'quick',
+    'correlation_id': None,
+    'memory_ids': [],
+    'tools_used': []
+}
+
+# Context variables setup
+reasoning_context = ContextVar('reasoning', default=ctx_default_value)
+
+def new_correlation_id() -> str:
+    return str(uuid.uuid4())[:8]
+
 class LibreAgentEngine:
-    def __init__(self, deep_schedule=10, quick_schedule=5, memory_graph_file=None, reasoning_model="gemini/gemini-2.0-flash-exp", sync=False):
+    def __init__(
+        self,
+        deep_schedule=10,
+        quick_schedule=5,
+        reasoning_model="gemini/gemini-2.0-flash-exp",
+        sync=False,
+        memory_graph_file=None
+    ):
         self.deep_schedule = deep_schedule
         self.quick_schedule = quick_schedule
-        self.memory_graph_file = memory_graph_file
         self.reasoning_model = reasoning_model
 
-        if self.memory_graph_file:
-            memory_graph.set_graph_file_path(self.memory_graph_file)
+        self.memory_graph_file = memory_graph_file
+        self.memory_graph = MemoryGraph()
 
         load_units()
         load_tools()
@@ -34,7 +56,7 @@ class LibreAgentEngine:
         self.reasoning_lock = threading.Lock()
         self.async_task1 = None
         self.async_task2 = None
-        self.deep_reflection_job = None
+        self.reflection_schedule = None
 
         logger.info(f"libreagentengine: initialized with deep_schedule={deep_schedule}, quick_schedule={quick_schedule}, reasoning_model={reasoning_model}")
 
@@ -45,7 +67,7 @@ class LibreAgentEngine:
             schedule.run_pending()
 
             # Update reflection times if changed
-            current_next_deep = self.deep_reflection_job.next_run if self.deep_reflection_job else None
+            current_next_deep = self.reflection_schedule.next_run if self.reflection_schedule else None
 
             if current_next_deep != last_next_deep:
                 content = f"Next deep reflection: {current_next_deep.strftime('%Y-%m-%d %H:%M:%S')}" if current_next_deep else "No scheduled deep reflections"
@@ -53,9 +75,7 @@ class LibreAgentEngine:
                 scheduler_memory = self.working_memory.get_memories(metadata={'role': 'system_status', 'unit_name': 'Scheduler'}, last=1)
 
                 if scheduler_memory:
-                    scheduler_memory = scheduler_memory[0]
-                    scheduler_memory['content'] = content
-                    scheduler_memory['metadata']['temporal_scope'] = 'working_memory'
+                    scheduler_memory[0]['content'] = content
                 else:
                     self.working_memory.add_memory(
                         memory_type='internal',
@@ -75,7 +95,7 @@ class LibreAgentEngine:
         while not self.stop_flag.is_set():
             try:
                 if not self.reasoning_queue.empty():
-                    priority, func = self.reasoning_queue.get_nowait()
+                    _, func = self.reasoning_queue.get_nowait()
                     if self.reasoning_lock.acquire(blocking=False):
                         try:
                             await func()
@@ -93,43 +113,57 @@ class LibreAgentEngine:
         gcd_val = math.gcd(self.deep_schedule, self.quick_schedule)
 
         if gcd_val > 0:
-            self.deep_reflection_job = schedule.every(gcd_val).minutes.do(self._schedule_reflection, 2, 'deep')
+            self.reflection_schedule = schedule.every(gcd_val).minutes.do(self._queue_reflection, 2, 'deep')
             self.stop_flag.clear()
 
         self.working_memory.register_observer(self.reflex)
-        self.working_memory.register_observer(self.persist)
         self.async_task1 = asyncio.create_task(self.schedule_reasoning_queue())
         self.async_task2 = asyncio.create_task(self.process_reasoning_queue())
         logger.info("libreagentengine: reflection scheduling has begun.")
 
     def execute(self, mode='quick', skip_recall=False, skip_forget=False):
-        if not skip_recall:
-            self._recall(mode)
+        # Set up execution context
+        ctx = copy_context()
+        corr_id = new_correlation_id()
 
-        unit = ReasoningUnit(model_name=self.reasoning_model)
+        def _execute_in_context():
+            MemoryGraph.set_graph_file(self.memory_graph_file)
 
-        logger.info(f"Executing ReasoningUnit")
-        try:
-            analysis = unit.reason(self.working_memory, mode)
-            logger.info(f"ReasoningUnit succeeded")
-            if analysis:
-                maybe_invoke_tool(self.working_memory, mode, analysis)
-        except Exception as e:
-            logger.error(f"ReasoningUnit failed: {e}")
+            current_context = {
+                'mode': mode,
+                'correlation_id': corr_id,
+                'memory_ids': [m['memory_id'] for m in self.working_memory.memories],
+                'tools_used': []
+            }
+            token = reasoning_context.set(current_context)
 
-            return
+            try:
+                if not skip_recall:
+                    self._recall(mode)
 
-        if not skip_forget:
-            self._forget(mode)
+                unit = ReasoningUnit(model_name=self.reasoning_model)
+                analysis = unit.reason(self.working_memory, mode)
+
+                if analysis:
+                    used_tools = maybe_invoke_tool(self.working_memory, mode, analysis)
+                    current_context['tools_used'] = used_tools
+                    reasoning_context.set(current_context)
+
+                if not skip_forget:
+                    self._forget(mode)
+            finally:
+                reasoning_context.reset(token)
+
+        ctx.run(_execute_in_context)
 
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('unit_name') == 'User':
-            self._schedule_reflection(1)
+            self._queue_reflection(1)
 
     async def migrate(self):
-        self._schedule_reflection(1, 'migration')
+        self._queue_reflection(1, 'migration')
 
-    def _schedule_reflection(self, priority=1, mode='quick'):
+    def _queue_reflection(self, priority=1, mode='quick'):
         async def _perform_reflection():
             await asyncio.to_thread(self.execute, mode)
 
@@ -148,29 +182,9 @@ class LibreAgentEngine:
         schedule.clear()
         logger.info("libreagentengine: fully stopped.")
 
-    async def persist(self, memory):
-        metadata = memory.get('metadata', {})
-        memory_type = memory.get('memory_type')
-        content = memory.get('content')
-
-        temporal_scope = metadata.get('temporal_scope')
-
-        def _do_persist():
-            memory_id = memory_graph.add_memory(
-                memory_type, content,
-                metadata=metadata,
-                parent_memory_ids=memory.get('parent_memory_ids')
-            )
-            memory['memory_id'] = memory_id
-            logger.info(f'Persisted memory: type={memory_type}, content={content}, metadata={metadata}')
-
-        if temporal_scope == 'short_term' or temporal_scope == 'long_term':
-            _do_persist()
-        else:
-            logger.warning(f'Memory not persisted: type={memory_type}, content={content}, metadata={metadata}')
-
     def _recall(self, mode='quick'):
-        logger.debug("Starting recall process")
+        ctx = reasoning_context.get()
+        logger.debug("Starting recall process", extra={'correlation_id': ctx['correlation_id']})
         exclude_ids = [m['memory_id'] for m in self.working_memory.memories]
         logger.debug(f"Excluding {len(exclude_ids)} existing memories from recall")
 
@@ -185,8 +199,7 @@ class LibreAgentEngine:
             rr = RecallRecognizer()
             recalled = rr.recall_memories(last_user_input, exclude_memory_ids=exclude_ids)
         else:
-            exclude_ids = [m['memory_id'] for m in self.working_memory.memories]
-            all_memories = memory_graph.get_memories(last=2000)
+            all_memories = MemoryGraph().get_memories(last=2000)
             logger.debug(f"Deep recall mode - considering {len(all_memories)} memories from graph")
             recalled = [mem for mem in all_memories if mem['memory_id'] not in exclude_ids]
 
@@ -194,13 +207,19 @@ class LibreAgentEngine:
             memory['metadata']['recalled'] = True
 
         self.working_memory.memories.extend(recalled)
-        logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.working_memory.id}")
+
+        if ctx['memory_ids'] is None:
+            ctx['memory_ids'] = []
+        ctx['memory_ids'].extend([m['memory_id'] for m in recalled])
+        reasoning_context.set(ctx)
+
+        logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.working_memory.id}", extra={'correlation_id': ctx['correlation_id']})
 
     def _forget(self, mode='quick'):
-        logger.debug("Starting forget process")
-        ephemeral_mems = self.working_memory.get_memories(metadata={'recalled': True})
-        logger.debug(f"Found {len(ephemeral_mems)} ephemeral memories to check")
+        ctx = reasoning_context.get()
+        logger.debug("Starting forget process", extra={'correlation_id': ctx['correlation_id']})
 
+        ephemeral_mems = self.working_memory.get_memories(metadata={'recalled': True})
         if mode == 'quick':
             last_assistant_output = self.working_memory.get_last_assistant_output()
             logger.debug(f"Last assistant output: {last_assistant_output}")
@@ -211,22 +230,25 @@ class LibreAgentEngine:
 
             fr = ForgetRecognizer()
             pruned = fr.check_if_used(last_assistant_output, ephemeral_mems)
-            pruned_ids =  [m['memory_id'] for m in pruned]
+            pruned_ids = [m['memory_id'] for m in pruned]
             logger.debug(f"ForgetRecognizer identified {len(pruned_ids)} memories to prune")
         else:
-            all_memories = memory_graph.get_memories(last=2000)
+            all_memories = MemoryGraph().get_memories(last=2000)
             # Get all memory IDs that still exist in the graph
             existing_ids = {mem['memory_id'] for mem in all_memories}
             # Prune memories that no longer exist in the graph
             pruned_ids = [m['memory_id'] for m in ephemeral_mems if m['memory_id'] not in existing_ids]
             logger.debug(f"Deep forget mode - identified {len(pruned_ids)} memories to prune")
 
-        new_nemories = []
+        new_memories = []
         for mem in self.working_memory.memories:
             if mem['memory_id'] in pruned_ids:
                 logger.info(f"pruning memory {mem['memory_id']} from WM {self.working_memory.id}")
             else:
-                new_nemories.append(mem)
+                new_memories.append(mem)
 
-        self.working_memory.memories = new_nemories
+        self.working_memory.memories = new_memories
+        ctx['memory_ids'] = [m['memory_id'] for m in new_memories]
+        reasoning_context.set(ctx)
+
         logger.info(f"{len(pruned_ids)} memories pruned from WorkingMemory {self.working_memory.id}")

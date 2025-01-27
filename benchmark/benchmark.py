@@ -8,6 +8,7 @@ import concurrent.futures
 from datetime import datetime
 from tabulate import tabulate
 from time import perf_counter
+from contextvars import copy_context
 
 import litellm
 
@@ -19,7 +20,7 @@ from natural_time_parser import NaturalTimeParser
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from memory_graph import memory_graph
+from memory_graph import MemoryGraph
 from logger import logger
 from reasoning_engine import LibreAgentEngine
 from utils import format_memories
@@ -27,10 +28,11 @@ from utils import format_memories
 base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
 
 config = {
-    'reasoning_model': 'gemini/gemini-2.0-flash-exp'
+    'reasoning_model': 'gemini/gemini-2.0-flash-exp',
+    'evaluator_model': 'gemini/gemini-2.0-flash-exp'
 }
 
-def run_qa_scenario(eval: dict, engine, wm):
+def run_qa_eval(eval: dict, engine, wm):
     question = eval.get("question")
 
     if question:
@@ -49,11 +51,9 @@ def run_qa_scenario(eval: dict, engine, wm):
         if answer_content:
             answer = answer_content
 
-    scenario = "\n".join([f"Question: {question}", f"Answer: {answer}"])
+    return "\n".join([f"Question: {question}", f"Answer: {answer}"])
 
-    return scenario
-
-def run_inspect_scenario(eval: dict, engine, wm):
+def run_inspect_eval(eval: dict, engine, wm):
     question = eval.get("question")
     if question:
         wm.add_interaction("user", question)
@@ -67,27 +67,26 @@ def run_inspect_scenario(eval: dict, engine, wm):
     recalled_memories = wm.get_memories(metadata={'recalled': True})
 
     # Create a scenario string with the recalled memories
-    scenario = "Recalled Memories:\n"
+    scene = "Recalled Memories:\n"
 
     if len(recalled_memories) > 0:
-        scenario += format_memories(recalled_memories)
+        scene += format_memories(recalled_memories)
     else:
-        scenario += "<EMPTY LIST>"
+        scene += "<EMPTY LIST>"
 
     recent_memories = wm.get_memories(metadata={'recalled': [False, None]})
 
-    scenario += "\n\nRecent Memories:\n"
+    scene += "\n\nRecent Memories:\n"
 
     if len(recent_memories) > 0:
-        scenario += format_memories(recent_memories, format='conversation')
+        scene += format_memories(recent_memories, format='conversation')
     else:
-        scenario += "<EMPTY LIST>"
+        scene += "<EMPTY LIST>"
 
-    return scenario
+    return scene
 
 def populate_memory_graph(memories_data: list, working_memory, memory_graph_path: str):
     time_parser = NaturalTimeParser()
-    memory_graph.set_graph_file_path(memory_graph_path)
 
     memory_ids = []
 
@@ -114,7 +113,7 @@ def populate_memory_graph(memories_data: list, working_memory, memory_graph_path
             "temporal_scope": "short_term"
         }
 
-        memory_id = memory_graph.add_memory(
+        memory_id = MemoryGraph().add_memory(
             timestamp=timestamp,
             memory_type="external",
             content=content,
@@ -144,49 +143,60 @@ def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
 
     evals = scenario_data.get("evaluations", [])
     memories_data = scenario_data.get("memories", [])
+    scenario_title = scenario_data.get("title")
 
     scenario_results = []
     for idx, eval in enumerate(evals):
         references = eval.get("references", [])
+        question = eval.get("question", "<no question>")
+
         if isinstance(references, str):
             references = [references]
-        # Create a temporary graph file within the run directory
-        temp_graph_filename = f'memory_graph_{scenario_file_name}_{idx}.pkl'
+
+        temp_graph_filename = f'memory_graph_{scenario_file_name}_{idx + 1}.pkl'
         temp_graph_path = os.path.join(run_dir, temp_graph_filename)
 
-        engine = LibreAgentEngine(sync=True, reasoning_model=config['reasoning_model'])
-        wm = engine.working_memory
-
-        # Populate the memory graph for each YAML file
-        populate_memory_graph(memories_data, wm, temp_graph_path)
-
-        eval_type = eval.get("type", "")
-        if eval_type == "qa":
-            scenario = run_qa_scenario(eval, engine, wm)
-        elif eval_type == "inspect":
-            scenario = run_inspect_scenario(eval, engine, wm)
-        else:
-            logger.warning(f"eval type '{eval_type}' unknown, running as Q&A scenario")
-            scenario = run_qa_scenario(eval, engine, wm)
-
-        evaluator = Evaluator()
-        evaluation = evaluator.evaluate_answer(scenario=scenario, references=references)
-
-        # After getting evaluation result
-        status = "Pass" if evaluation.strip().lower().startswith("pass") else "Fail"
-        scenario_results.append({
-            "scenario": scenario_file_name,
-            "attempt": scenario,
-            "question": eval.get("question", "<no question>"),
-            "status": status,
-            "details": evaluation,
-            "references": "\n".join(references)
-        })
-
-        time.sleep(2)
+        MemoryGraph.set_graph_file(temp_graph_path)
 
         # cleanup the temporary graph file
-        os.remove(temp_graph_path)
+        if os.path.exists(temp_graph_path):
+            os.remove(temp_graph_path)
+
+        ctx = copy_context()
+
+        def _run():
+            engine = LibreAgentEngine(sync=True, reasoning_model=config['reasoning_model'])
+            wm = engine.working_memory
+
+            # Populate the memory graph for each YAML file
+            populate_memory_graph(memories_data, wm, temp_graph_path)
+
+            eval_type = eval.get("type", "")
+            if eval_type == "qa":
+                scenario = run_qa_eval(eval, engine, wm)
+            elif eval_type == "inspect":
+                scenario = run_inspect_eval(eval, engine, wm)
+            else:
+                logger.warning(f"eval type '{eval_type}' unknown, running as Q&A eval")
+                scenario = run_qa_eval(eval, engine, wm)
+
+            evaluator = Evaluator(model=config['evaluator_model'])
+            evaluation = evaluator.evaluate_answer(scenario=scenario, references=references)
+
+            # After getting evaluation result
+            status = "Pass" if evaluation.strip().lower().endswith("pass") else "Fail"
+            scenario_results.append({
+                "scenario": scenario_file_name,
+                "attempt": scenario,
+                "question": question,
+                "status": status,
+                "details": evaluation,
+                "references": "\n".join(references)
+            })
+
+        ctx.run(_run)
+
+        # time.sleep(2)
 
     return scenario_results
 
@@ -283,8 +293,7 @@ def print_summary(all_results, total_time: float, num_threads: int):
                 colalign=("right", "left")
             ))
 
-def run(run_id: str, include_pattern: str, num_threads: int):
-
+def run_benchmark(run_id: str, include_pattern: str, num_threads: int):
     # Find all YAML files in the current file's directory
     current_dir = os.path.dirname(__file__)
 
@@ -324,6 +333,7 @@ def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
     parser.add_argument('--include', type=str, help='Pattern to filter YAML files to run', default=None)
     parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
+    parser.add_argument('--evaluator-model', type=str, default="gemini/gemini-2.0-flash-exp")
     parser.add_argument('--threads', '-j', type=int, default=1, help='Number of parallel threads to use for processing scenarios')
 
     args = parser.parse_args()
@@ -332,7 +342,8 @@ def main():
     include_pattern = args.include
 
     config.update({
-        'reasoning_model': args.reasoning_model
+        'reasoning_model': args.reasoning_model,
+        'evaluator_model': args.evaluator_model
     })
 
     os.makedirs(base_runs_dir, exist_ok=True)
@@ -345,7 +356,7 @@ def main():
 
     try:
         start_time = perf_counter()
-        run(run_id, include_pattern, args.threads)
+        run_benchmark(run_id, include_pattern, args.threads)
         end_time = perf_counter()
         logger.info(f"Run {run_id} completed in {end_time - start_time:.2f} seconds")
     except Exception as e:

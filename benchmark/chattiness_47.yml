@@ -1,0 +1,20 @@
+title: "Terminal Error Handling"
+description: No follow-up to fatal error
+memories:
+  - timestamp: "45 seconds ago"
+    role: user
+    content: "Can you run the monthly reports?"
+    working_memory: True
+
+  - timestamp: "30 seconds ago"
+    role: assistant
+    content: "Sorry, it seems I can't connect to the database right now."
+    working_memory: True
+
+evaluations:
+  - references: >
+      Recent Memories should only have ONE error notice by the system.
+      REASON: No point adding more messages until the user responds.
+    type: inspect
+    skip_recall: true
+    skip_forget: true

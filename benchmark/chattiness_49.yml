@@ -1,0 +1,20 @@
+title: "Automation Silence Protocol"
+description: No confirmation of automatic actions
+memories:
+  - timestamp: "45 seconds ago"
+    role: user
+    content: "Set up auto-replies during my meetings"
+    working_memory: True
+
+  - timestamp: "30 seconds ago"
+    role: assistant
+    content: "Got it! I'll handle replies when you're busy 🤫"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Memory should only have the auto-reply confirmation.
+      REASON: No need to keep talking about automated stuff
+    type: inspect
+    skip_recall: true
+    skip_forget: true

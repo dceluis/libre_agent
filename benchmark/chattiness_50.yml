@@ -1,0 +1,15 @@
+title: "Pre-Scheduled Message Restraint"
+description: No response to timed reminder
+memories:
+  - timestamp: "30 seconds ago"
+    role: assistant
+    content: "Don't forget – team sync in 5! ⏰"
+    working_memory: True
+
+evaluations:
+  - references: >
+      Memory should only show ONE sync reminder.
+      REASON: Scheduled nudges shouldn't be sent twice.
+    type: inspect
+    skip_recall: true
+    skip_forget: true

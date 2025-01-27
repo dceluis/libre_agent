@@ -67,8 +67,8 @@ def register_engine(chat_id: int):
     engine = LibreAgentEngine(
         deep_schedule=config['deep_schedule'],
         quick_schedule=config['quick_schedule'],
+        reasoning_model=config['reasoning_model'],
         memory_graph_file=f"{config['memory_graph_file']}_{chat_id}" if config['memory_graph_file'] else None,
-        reasoning_model=config['reasoning_model']
     )
 
     # Register observer for proactive messages
