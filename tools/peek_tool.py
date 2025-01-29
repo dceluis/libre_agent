@@ -5,11 +5,10 @@ import subprocess
 import time
 import traceback
 from logger import logger
-from tool_registry import ToolRegistry
 from utils import get_world_state_section  # Import the utility function
 
 class PeekTool:
-    name = "Peek Tool"
+    name = "PeekTool"
     # description = "Captures a screenshot of the current screen and analyzes it."
     description = """
 <tool>

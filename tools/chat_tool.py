@@ -1,8 +1,10 @@
 from logger import logger
 from tool_registry import ToolRegistry
+from memory_graph import memory_graph
+from traceback import format_exc
 
 class ChatTool:
-    name = 'Chat Tool'
+    name = 'ChatTool'
 
     description = """
 <tool>
@@ -33,20 +35,33 @@ class ChatTool:
 
     def run(self, content, parse_mode='plaintext', **kwargs):
         if content:
-            logger.info(f"Content provided: {content}")
+            try:
+                logger.info(f"Content provided: {content}")
 
-            self.working_memory.add_interaction(
-                'assistant',
-                content,
-                metadata={
+                metadata = {
                     'unit_name': 'ReasoningUnit',
                     'reasoning_mode': self.mode,
-                    'parse_mode': parse_mode
+                    'parse_mode': parse_mode,
                 }
-            )
 
-            return True
+                memory = self.working_memory.add_interaction(
+                    'assistant',
+                    content,
+                    metadata=metadata
+                )
+
+                memory_graph.add_memory(
+                    memory_type=memory['memory_type'],
+                    content=memory['content'],
+                    metadata=memory['metadata'],
+                )
+
+                return True
+            except Exception as e:
+                logger.error(f"Error in ChatTool: {str(e)}\n{format_exc()}")
+                return False
         else:
+            logger.warning("No content provided")
             return False
 
 ToolRegistry.register_tool(ChatTool)

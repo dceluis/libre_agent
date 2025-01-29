@@ -1,9 +1,9 @@
 from tool_registry import ToolRegistry
 from logger import logger
-from memory_graph import MemoryGraph
+from memory_graph import memory_graph
 
 class MemoryDeleteTool:
-    name = "Memory Delete Tool"
+    name = "MemoryDeleteTool"
     description = """
 <tool>
     <name>Memory Delete Tool</name>
@@ -26,12 +26,7 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
         self.mode = mode
 
     def run(self, memory_id: str):
-        # Check if memory exists
-        if memory_id not in MemoryGraph().load_graph():
-            logger.error(f"Memory with ID '{memory_id}' not found")
-            return False
-
-        recalled_memories = MemoryGraph().get_memories(metadata={'recalled': True})
+        recalled_memories = self.working_memory.get_memories(metadata={'recalled': True})
         recent_memories = self.working_memory.get_memories(metadata={'recalled': [False, None]})
 
         recalled_memory_ids = [m['memory_id'] for m in recalled_memories]
@@ -55,9 +50,11 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
             # Remove the memory from the working memory
             new_memories = [m for m in self.working_memory.memories if m['memory_id'] != memory_id]
             self.working_memory.memories = new_memories
+        else:
+            logger.error(f"Memory with ID '{memory_id}' not found in working_memory")
+            return False
 
-        # Remove the memory node from the graph
-        MemoryGraph().remove_memory(memory_id)
+        memory_graph.remove_memory(memory_id)
 
         logger.debug(f"Memory purged: id='{memory_id}'")
 

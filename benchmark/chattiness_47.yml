@@ -17,4 +17,3 @@ evaluations:
       REASON: No point adding more messages until the user responds.
     type: inspect
     skip_recall: true
-    skip_forget: true

@@ -64,14 +64,53 @@ def format_memories(memories, format: str = 'default'):
 
             unit_name = metadata.get('unit_name')
 
-            type_str = ' said' if memory_type == 'external' else ' (internal)'
-            unit_str = f"{unit_name}" if unit_name else ''
+            type_str = ' said' if memory_type == 'external' else ' - internal'
+            if unit_name:
+                unit_str = f"{unit_name} (you)" if unit_name == 'ReasoningUnit' else unit_name
+            else:
+                unit_str = 'System'
 
             formatted += f"[{timestamp}] {unit_str}{type_str}: {content}\n"
     else:
         logger.error(f"Unknown memory format: {format}")
 
     return formatted.strip()
+
+def maybe_invoke_tool_new(working_memory, mode='quick', response=None):
+    if not response:
+        return
+
+    for response_tool in response:
+        available_tools = ToolRegistry.get_tools(mode=mode)
+
+        tool_name = response_tool.__class__.__name__
+
+        tool = next((t for t in available_tools if t['name'] == tool_name), None)
+
+        if tool:
+            try:
+                params_dict = {}
+
+                for param_name, param_value in response_tool:
+                    params_dict[param_name.strip()] = param_value.strip()
+
+                logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
+
+                tool_instance = tool['class'](working_memory, mode=mode)
+
+                if params_dict:
+                    result = tool_instance.run(**params_dict)
+                else:
+                    result = tool_instance.run()
+
+                result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}"
+                logger.info(result_msg)
+            except Exception as e:
+                result_msg = f"Failed to run tool '{tool_name}': {e}"
+                logger.error(result_msg)
+        else:
+            result_msg = f"Tool '{tool_name}' not available."
+            logger.warning(result_msg)
 
 def maybe_invoke_tool(working_memory, mode: str = 'quick', reflection_text: str = ''):
     tools_match = re.findall(
@@ -115,3 +154,5 @@ def maybe_invoke_tool(working_memory, mode: str = 'quick', reflection_text: str 
             else:
                 result_msg = f"Tool '{tool_name}' not available."
                 logger.warning(result_msg)
+
+        # working_memory.add_memory(...)

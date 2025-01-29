@@ -22,4 +22,3 @@ evaluations:
       REASON: User gratitude after resolution doesn't require response
     type: inspect  
     skip_recall: true
-    skip_forget: true

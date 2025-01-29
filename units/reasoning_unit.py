@@ -8,6 +8,9 @@ from tabulate import tabulate
 from tool_registry import ToolRegistry
 from utils import get_world_state_section, format_memories
 
+from baml_client import b
+from baml_client.types import ChatTool
+
 class ReasoningUnit():
     unit_name = "ReasoningUnit"
 
@@ -111,10 +114,9 @@ NOTE: Going over the memory storage contraints WILL degrade the system's operati
 
 2. Essential Memory Preservation
 
-You maintain essential memories that help build context and understanding. Since
-memory space is limited, you focus on storing only the most significant,
-distinctive, and refined information. Rather than creating new procedural
-memories, you prioritize updating existing ones with improved knowledge.
+You maintain essential memories that help build context and understanding.
+You focus on storing only the most significant, distinctive, and refined information.
+You actively update existing memories with improved knowledge.
 
 3. User interaction
 
@@ -136,7 +138,7 @@ Stay mostly quiet
 Base decisions on the most recent and relevant information
 Only add relevant, timely and valuable messages to the conversation
 Tools are your means for taking action, including messaging
-Remember that actions will not be taken unless explicitly requested by using the appropriate tool
+Remember that actions will not be taken unless explicitly triggered by using the appropriate tool
 Multiple tools may be used in a single reasoning cycle
 
 This framework ensures you maintain effective reasoning capabilities while actively managing memory hygiene.
@@ -149,26 +151,6 @@ Contains messages and statuses from the current conversation session including:
 - Your own responses
 - System status updates
 - Other system-generated messages
-
-## Tools Interface:
-
-You may use tools through the specific XML syntax:
-
-<tools>
-    <tool>
-        <name>...</name>
-        <parameters>
-            <parameter>
-                <name>...</name>
-                <value>...</value>
-            </parameter>
-        </parameters>
-    </tool>
-    ...
-</tools>
-
-System tools:
-{self.describe_tools(mode)}
 """
 
     def reason(self, working_memory, mode):
@@ -214,34 +196,24 @@ System State Report (Auto-generated):
 This report contains the current system state as automatically compiled by the Reporting Unit.
 
 ## Current Reasoning Mode:
-- This indicates the current depth and focus of the reasoning process
 {mode}
 
 ## Environment:
-- Shows the current state of the external environment and system conditions
 {get_world_state_section()}
 
 ## Operating Mode:
-- Describes the specific focus and constraints of the current reasoning cycle
 {config['instruction_note']}
 
 ## Personality Traits:
-- The core behavioral characteristics guiding the unit's chat interactions
 {self.personality_traits}
 
 ## Recalled Memories:
-- Old memories that may be relevant to the current context (stale data, keep updated)
 {formatted_recalled}
 
-## Working Memory:
-- The most recent memories, immediate context for the current reasoning task, and the current conversation
+## Working Memory (Current conversation):
 {formatted_recent}
 
-## Available Tools:
-- The tools available for taking action in the current mode
-{config['allowed_tools']}
-
-Analyze the current situation and determine appropriate actions.
+Analyze the current situation and determine appropriate tools to call.
 """
 
             logging_messages = [
@@ -249,25 +221,28 @@ Analyze the current situation and determine appropriate actions.
                 ("Reflection Instruction", instruction),
             ]
 
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": instruction}
-            ]
+            response = b.UseTools(content=f"{system_prompt}\n{instruction}")
 
-            completion_response = completion(model=self.model_name, messages=messages)
+            # messages = [
+            #     {"role": "system", "content": system_prompt},
+            #     {"role": "user", "content": instruction}
+            # ]
 
-            logger.debug(f"Completion response: {completion_response}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
+            # completion_response = completion(model=self.model_name, messages=messages)
 
-            reflection_text = completion_response['choices'][0]['message']['content'].strip()
+            # logger.debug(f"Completion response: {completion_response}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
+
+            # reflection_text = completion_response['choices'][0]['message']['content'].strip()
 
             # Get input tokens
-            input_tokens = completion_response['usage']['prompt_tokens']
+            # input_tokens = completion_response['usage']['prompt_tokens']
 
             # Get output tokens
-            output_tokens = completion_response['usage']['completion_tokens']
+            # output_tokens = completion_response['usage']['completion_tokens']
 
-            logging_messages.append(("Reflection Result", reflection_text))
+            # logging_messages.append(("Reflection Result", reflection_text))
 
+            logging_messages.append(("Reflection Result", f"{response}"))
             logger.info(
                 tabulate(
                     logging_messages,
@@ -275,14 +250,14 @@ Analyze the current situation and determine appropriate actions.
                     maxcolwidths=[None, 100],  # Wrap long values at 80 characters
                 ),
                 extra={
-                    'tokens': { 'input': input_tokens, 'output': output_tokens },
+                    # 'tokens': { 'input': input_tokens, 'output': output_tokens },
                     'model': self.model_name,
                     'step': config['step_name'],
                     'unit': 'reasoning_unit'
                 }
             )
 
-            return reflection_text
+            return response
 
         except Exception as e:
             logger.error(f"Error in reflection: {e}\n{traceback.format_exc()}")

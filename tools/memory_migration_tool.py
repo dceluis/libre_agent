@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 class MemoryMigrationTool:
-    name = "Memory Migration Tool"
+    name = "MemoryMigrationTool"
     description = """
 <tool>
     <name>Memory Migration Tool</name>

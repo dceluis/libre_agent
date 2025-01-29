@@ -12,9 +12,6 @@ from logger import logger
 
 class MemoryGraph:
     def __init__(self):
-        self.data_dir = Path("user_data")
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-
         self._lock = threading.Lock()
 
     @classmethod
@@ -22,7 +19,8 @@ class MemoryGraph:
         memory_graph_file_ctx.set(graph_file)
 
     def load_graph(self):
-        graph_file = self.data_dir / memory_graph_file_ctx.get()
+        graph_file = memory_graph_file_ctx.get()
+        graph_file = Path(str(graph_file))
 
         if graph_file.exists():
             logger.info("Memory graph loaded successfully.")
@@ -33,10 +31,17 @@ class MemoryGraph:
             return nx.DiGraph()
 
     def save_graph(self, graph):
-        graph_file = self.data_dir / memory_graph_file_ctx.get()
+        graph_file = memory_graph_file_ctx.get()
+
+        graph_file = Path(str(graph_file))
+        parent_dir = Path(graph_file.parent)
+
+        if not parent_dir.exists():
+            parent_dir.mkdir(parents=True, exist_ok=True)
 
         with open(graph_file, "wb") as f:
             pickle.dump(graph, f)
+
         logger.info("Memory graph saved successfully.")
 
     def generate_memory_id(self):

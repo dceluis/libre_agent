@@ -13,8 +13,7 @@ memories:
 
 evaluations:
   - references: >
-      Memory should only have the auto-reply confirmation.
+      Recent memories should only have ONE auto-reply confirmation.
       REASON: No need to keep talking about automated stuff
     type: inspect
     skip_recall: true
-    skip_forget: true

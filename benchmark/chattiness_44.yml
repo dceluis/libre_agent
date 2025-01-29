@@ -13,8 +13,7 @@ memories:
 
 evaluations:
   - references: >
-      Working memory should only show the server alert.
-      REASON: No need to keep pinging after giving a heads-up
+      Recent memories should show the system only sent ONE server alert.
+      REASON: No need to pinging after giving a heads-up so recently
     type: inspect
     skip_recall: true
-    skip_forget: true

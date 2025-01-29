@@ -17,4 +17,3 @@ evaluations:
       REASON: Background tasks should stay in the background
     type: inspect
     skip_recall: true
-    skip_forget: true

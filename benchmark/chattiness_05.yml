@@ -17,4 +17,3 @@ evaluations:
       REASON: There is no need for the system to acknowledge the user's message more than once.
     type: inspect
     skip_recall: true
-    skip_forget: true

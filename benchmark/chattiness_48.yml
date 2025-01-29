@@ -12,4 +12,3 @@ evaluations:
       REASON: Announcements are FYI, not conversation starters
     type: inspect
     skip_recall: true
-    skip_forget: true

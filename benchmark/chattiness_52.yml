@@ -17,4 +17,3 @@ evaluations:
       REASON: Settings changes are done deals, not chat topics
     type: inspect
     skip_recall: true
-    skip_forget: true

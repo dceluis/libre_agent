@@ -95,7 +95,9 @@ class WorkingMemory:
         if metadata.get('reasoning_mode') is None:
             metadata['reasoning_mode'] = 'none'
 
-        self.add_memory('external', content, parent_memory_ids=parent_memory_ids, metadata=metadata)
+        memory = self.add_memory('external', content, parent_memory_ids=parent_memory_ids, metadata=metadata)
+
+        return memory
 
     def get_memories(self, first=None, last=None, memory_type=None, metadata=None, sort='timestamp', reverse=False):
         mems = [

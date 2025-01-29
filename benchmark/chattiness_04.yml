@@ -17,4 +17,3 @@ evaluations:
       REASON: Vague commands should get single follow-up question
     type: inspect
     skip_recall: true
-    skip_forget: true

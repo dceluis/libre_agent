@@ -17,4 +17,3 @@ evaluations:
       REASON: Green lights don't need extra commentary
     type: inspect
     skip_recall: true
-    skip_forget: true

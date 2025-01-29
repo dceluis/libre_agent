@@ -103,7 +103,7 @@ Memories:
 {format_memories(memories)}
 
 Return a comma-separated list memory ids that are relevant to the user prompt.
-Return a minimum of 0 memories and a maximum of 10 memories
+Return a minimum of 0 memories and a maximum of 5 memories
 
 If no memories are relevant, return an empty list.
 """

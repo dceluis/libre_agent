@@ -1,5 +1,6 @@
 import yaml
 import traceback
+import fnmatch
 import sys
 import os
 import time
@@ -38,10 +39,9 @@ def run_qa_eval(eval: dict, engine, wm):
     if question:
         wm.add_interaction("user", question)
 
-    skip_forget = eval.get("skip_forget", False)
     skip_recall = eval.get("skip_recall", False)
 
-    engine.execute('quick', skip_forget=skip_forget, skip_recall=skip_recall)
+    engine.execute('quick', skip_recall=skip_recall)
 
     answer_memory = wm.get_memories(memory_type="external", metadata={"unit_name": "ReasoningUnit"}, last=1)
 
@@ -58,16 +58,15 @@ def run_inspect_eval(eval: dict, engine, wm):
     if question:
         wm.add_interaction("user", question)
 
-    skip_forget = eval.get("skip_forget", False)
     skip_recall = eval.get("skip_recall", False)
 
-    engine.execute('quick', skip_forget=skip_forget, skip_recall=skip_recall)
+    engine.execute('quick', skip_recall=skip_recall)
 
     # Get the recalled memories
     recalled_memories = wm.get_memories(metadata={'recalled': True})
 
     # Create a scenario string with the recalled memories
-    scene = "Recalled Memories:\n"
+    scene = "## Recalled Memories:\n"
 
     if len(recalled_memories) > 0:
         scene += format_memories(recalled_memories)
@@ -76,7 +75,7 @@ def run_inspect_eval(eval: dict, engine, wm):
 
     recent_memories = wm.get_memories(metadata={'recalled': [False, None]})
 
-    scene += "\n\nRecent Memories:\n"
+    scene += "\n\n## Recent Memories:\n"
 
     if len(recent_memories) > 0:
         scene += format_memories(recent_memories, format='conversation')
@@ -138,33 +137,36 @@ def populate_memory_graph(memories_data: list, working_memory, memory_graph_path
 
     return memory_ids
 
-def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
+def run_scenario(run_id: str, scenario_data: dict, num_attempts):
     run_dir = os.path.join(base_runs_dir, run_id)
 
     evals = scenario_data.get("evaluations", [])
     memories_data = scenario_data.get("memories", [])
     scenario_title = scenario_data.get("title")
+    scenario_file_name = scenario_data.get("file_name")
 
     scenario_results = []
-    for idx, eval in enumerate(evals):
+    for eval_idx, eval in enumerate(evals):
         references = eval.get("references", [])
         question = eval.get("question", "<no question>")
 
         if isinstance(references, str):
             references = [references]
 
-        temp_graph_filename = f'memory_graph_{scenario_file_name}_{idx + 1}.pkl'
-        temp_graph_path = os.path.join(run_dir, temp_graph_filename)
-
-        MemoryGraph.set_graph_file(temp_graph_path)
-
-        # cleanup the temporary graph file
-        if os.path.exists(temp_graph_path):
-            os.remove(temp_graph_path)
-
         ctx = copy_context()
 
-        def _run():
+        def _run(attempt):
+            attempt_dir = os.path.join(run_dir, f"{attempt}")
+
+            temp_graph_filename = f'memory_graph_{scenario_file_name}_{eval_idx + 1}.pkl'
+            temp_graph_path = os.path.join(attempt_dir, temp_graph_filename)
+
+            MemoryGraph.set_graph_file(temp_graph_path)
+
+            # cleanup the temporary graph file
+            if os.path.exists(temp_graph_path):
+                os.remove(temp_graph_path)
+
             engine = LibreAgentEngine(sync=True, reasoning_model=config['reasoning_model'])
             wm = engine.working_memory
 
@@ -194,9 +196,13 @@ def run_scenario(run_id: str, scenario_file_name: str, scenario_data: dict):
                 "references": "\n".join(references)
             })
 
-        ctx.run(_run)
-
-        # time.sleep(2)
+        for attempt in range(num_attempts):
+            att = attempt + 1
+            ctx.run(_run, att)
+            if att < num_attempts:
+                # Wait before retrying if there are more attempts
+                # time.sleep(2)
+                pass
 
     return scenario_results
 
@@ -293,14 +299,14 @@ def print_summary(all_results, total_time: float, num_threads: int):
                 colalign=("right", "left")
             ))
 
-def run_benchmark(run_id: str, include_pattern: str, num_threads: int):
+def run_benchmark(run_id: str, include_pattern: str, num_threads: int, num_attempts):
     # Find all YAML files in the current file's directory
     current_dir = os.path.dirname(__file__)
 
     yaml_paths = [
         os.path.join(current_dir, f)
         for f in os.listdir(current_dir)
-        if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or include_pattern in f)
+        if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or any(fnmatch.fnmatch(f, p) for p in include_pattern.split(',')))
     ]
 
     all_results = []
@@ -309,31 +315,34 @@ def run_benchmark(run_id: str, include_pattern: str, num_threads: int):
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = []
         for yaml_path in yaml_paths:
-            futures.append(executor.submit(process_scenario, yaml_path, run_id))
+            futures.append(executor.submit(process_scenario, yaml_path, run_id, num_attempts))
 
         for future in concurrent.futures.as_completed(futures):
             try:
                 scenario_results = future.result()
                 all_results.extend(scenario_results)
             except Exception as e:
-                logger.error(f"Scenario failed: {str(e)}")
+                logger.error(f"Scenario failed: {str(e)}\n{traceback.format_exc()}")
 
     end_time = perf_counter()
 
     print_summary(all_results, end_time - start_time, num_threads)
 
-def process_scenario(yaml_path, run_id):
+def process_scenario(yaml_path, run_id, num_attempts):
     with open(yaml_path, 'r', encoding='utf-8') as f:
         scenario_data = yaml.safe_load(f)
 
     scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
-    return run_scenario(run_id, scenario_file_name, scenario_data)
+    scenario_data['file_name'] = scenario_file_name
+
+    return run_scenario(run_id, scenario_data, num_attempts)
 
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
     parser.add_argument('--include', type=str, help='Pattern to filter YAML files to run', default=None)
     parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
     parser.add_argument('--evaluator-model', type=str, default="gemini/gemini-2.0-flash-exp")
+    parser.add_argument('--attempts', type=int, default=1, help='Number of times to attempt each scenario')
     parser.add_argument('--threads', '-j', type=int, default=1, help='Number of parallel threads to use for processing scenarios')
 
     args = parser.parse_args()
@@ -356,7 +365,7 @@ def main():
 
     try:
         start_time = perf_counter()
-        run_benchmark(run_id, include_pattern, args.threads)
+        run_benchmark(run_id, include_pattern, args.threads, args.attempts)
         end_time = perf_counter()
         logger.info(f"Run {run_id} completed in {end_time - start_time:.2f} seconds")
     except Exception as e:

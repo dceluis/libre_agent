@@ -12,4 +12,3 @@ evaluations:
       REASON: Scheduled nudges shouldn't be sent twice.
     type: inspect
     skip_recall: true
-    skip_forget: true

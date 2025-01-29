@@ -12,4 +12,3 @@ evaluations:
       REASON: Friendly reminders shouldn't start conversations
     type: inspect
     skip_recall: true
-    skip_forget: true

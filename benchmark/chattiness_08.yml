@@ -12,4 +12,3 @@ evaluations:
       REASON: User sent an incomplete thought with no clear request
     type: inspect
     skip_recall: true
-    skip_forget: true

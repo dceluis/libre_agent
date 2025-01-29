@@ -17,4 +17,3 @@ evaluations:
       REASON: Multiple questions in single utterance should get single consolidated response
     type: inspect
     skip_recall: true
-    skip_forget: true

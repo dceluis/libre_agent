@@ -6,9 +6,8 @@ from queue import PriorityQueue
 from memory_graph import MemoryGraph
 from working_memory import WorkingMemory, WorkingMemoryAsync
 from logger import logger
-from utils import load_units, load_tools, maybe_invoke_tool
+from utils import load_units, load_tools, maybe_invoke_tool, maybe_invoke_tool_new
 from recall_recognizer import RecallRecognizer
-from forget_recognizer import ForgetRecognizer
 from units.reasoning_unit import ReasoningUnit
 
 import uuid
@@ -121,13 +120,14 @@ class LibreAgentEngine:
         self.async_task2 = asyncio.create_task(self.process_reasoning_queue())
         logger.info("libreagentengine: reflection scheduling has begun.")
 
-    def execute(self, mode='quick', skip_recall=False, skip_forget=False):
+    def execute(self, mode='quick', skip_recall=False):
         # Set up execution context
         ctx = copy_context()
         corr_id = new_correlation_id()
 
         def _execute_in_context():
-            MemoryGraph.set_graph_file(self.memory_graph_file)
+            if self.memory_graph_file:
+                MemoryGraph.set_graph_file(self.memory_graph_file)
 
             current_context = {
                 'mode': mode,
@@ -142,15 +142,12 @@ class LibreAgentEngine:
                     self._recall(mode)
 
                 unit = ReasoningUnit(model_name=self.reasoning_model)
-                analysis = unit.reason(self.working_memory, mode)
+                tool_response = unit.reason(self.working_memory, mode)
 
-                if analysis:
-                    used_tools = maybe_invoke_tool(self.working_memory, mode, analysis)
-                    current_context['tools_used'] = used_tools
-                    reasoning_context.set(current_context)
-
-                if not skip_forget:
-                    self._forget(mode)
+                if tool_response:
+                    used_tools = maybe_invoke_tool_new(self.working_memory, mode, tool_response)
+                    # current_context['tools_used'] = used_tools
+                #     reasoning_context.set(current_context)
             finally:
                 reasoning_context.reset(token)
 
@@ -169,6 +166,7 @@ class LibreAgentEngine:
 
         try:
             self.reasoning_queue.put_nowait((priority, _perform_reflection))
+            logger.info(f"Queued reflection with priority {priority} and mode {mode}")
         except asyncio.QueueFull:
             logger.warning("Reasoning queue full, skipping scheduled reflection")
 
@@ -214,41 +212,3 @@ class LibreAgentEngine:
         reasoning_context.set(ctx)
 
         logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.working_memory.id}", extra={'correlation_id': ctx['correlation_id']})
-
-    def _forget(self, mode='quick'):
-        ctx = reasoning_context.get()
-        logger.debug("Starting forget process", extra={'correlation_id': ctx['correlation_id']})
-
-        ephemeral_mems = self.working_memory.get_memories(metadata={'recalled': True})
-        if mode == 'quick':
-            last_assistant_output = self.working_memory.get_last_assistant_output()
-            logger.debug(f"Last assistant output: {last_assistant_output}")
-
-            if not last_assistant_output:
-                logger.debug("No last assistant output found, skipping forget")
-                return
-
-            fr = ForgetRecognizer()
-            pruned = fr.check_if_used(last_assistant_output, ephemeral_mems)
-            pruned_ids = [m['memory_id'] for m in pruned]
-            logger.debug(f"ForgetRecognizer identified {len(pruned_ids)} memories to prune")
-        else:
-            all_memories = MemoryGraph().get_memories(last=2000)
-            # Get all memory IDs that still exist in the graph
-            existing_ids = {mem['memory_id'] for mem in all_memories}
-            # Prune memories that no longer exist in the graph
-            pruned_ids = [m['memory_id'] for m in ephemeral_mems if m['memory_id'] not in existing_ids]
-            logger.debug(f"Deep forget mode - identified {len(pruned_ids)} memories to prune")
-
-        new_memories = []
-        for mem in self.working_memory.memories:
-            if mem['memory_id'] in pruned_ids:
-                logger.info(f"pruning memory {mem['memory_id']} from WM {self.working_memory.id}")
-            else:
-                new_memories.append(mem)
-
-        self.working_memory.memories = new_memories
-        ctx['memory_ids'] = [m['memory_id'] for m in new_memories]
-        reasoning_context.set(ctx)
-
-        logger.info(f"{len(pruned_ids)} memories pruned from WorkingMemory {self.working_memory.id}")

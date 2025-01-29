@@ -3,7 +3,7 @@ from logger import logger
 from memory_graph import MemoryGraph
 
 class MemoryUpdateTool:
-    name = "Memory Update Tool"
+    name = "MemoryUpdateTool"
     description = """
 <tool>
     <name>Memory Update Tool</name>
@@ -49,11 +49,12 @@ Only use this tool if you have a valid memory ID in the format: mem-<random_stri
             return priority_level
 
     def validate_temporal_scope(self, temporal_scope):
-        valid_scopes = ['purged', 'short_term', 'long_term']
+        valid_scopes = ['short_term', 'long_term']
         if temporal_scope in valid_scopes:
             return temporal_scope
 
-    def run(self, memory_id: str, content: str | None = None, priority_level: str | None = None, temporal_scope: str | None = None):
+    def run(self, memory_id: str, content: str | None = None,
+            priority_level: str | None = None, temporal_scope: str | None = None, **kwargs):
         memory_graph = MemoryGraph()
 
         # Validate inputs

@@ -4,7 +4,7 @@ from logger import logger
 from memory_graph import memory_graph
 
 class MemoryCreateTool:
-    name = "Memory Create Tool"
+    name = "MemoryCreateTool"
     description = """
 <tool>
     <name>Memory Create Tool</name>
