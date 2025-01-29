@@ -25,7 +25,6 @@ bot = None
 # Store configuration
 config = {
     'deep_schedule': 10,
-    'quick_schedule': 5,
     'memory_graph_file': None,
     'reasoning_model': 'gemini/gemini-2.0-flash-exp'
 }
@@ -66,7 +65,6 @@ def register_engine(chat_id: int):
     """Register a new engine for a chat"""
     engine = LibreAgentEngine(
         deep_schedule=config['deep_schedule'],
-        quick_schedule=config['quick_schedule'],
         reasoning_model=config['reasoning_model'],
         memory_graph_file=f"{config['memory_graph_file']}_{chat_id}" if config['memory_graph_file'] else None,
     )
@@ -130,7 +128,6 @@ async def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="LibreAgent Telegram Bot")
     parser.add_argument('--deep-schedule', type=int, default=10, help='Deep reflection schedule in minutes')
-    parser.add_argument('--quick-schedule', type=int, default=5, help='Quick reflection schedule in minutes')
     parser.add_argument('--memory-graph-file', type=str, help='Base path for memory graph files')
     parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
     args = parser.parse_args()
@@ -138,7 +135,6 @@ async def main():
     # Update config
     config.update({
         'deep_schedule': args.deep_schedule,
-        'quick_schedule': args.quick_schedule,
         'memory_graph_file': args.memory_graph_file,
         'reasoning_model': args.reasoning_model
     })
@@ -153,7 +149,6 @@ async def main():
 
     # Start polling
     logger.info(f"Starting bot with deep_schedule={config['deep_schedule']}, "
-                f"quick_schedule={config['quick_schedule']}, "
                 f"memory_graph_file={config['memory_graph_file']}, "
                 f"reasoning_model={config['reasoning_model']}")
 

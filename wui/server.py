@@ -18,7 +18,6 @@ from reasoning_engine import LibreAgentEngine
 from memory_graph import MemoryGraph
 
 # Configuration defaults
-quick_schedule = 5
 deep_schedule = 10
 graph_file = None
 
@@ -27,10 +26,9 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), 't
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global graph_file, deep_schedule, quick_schedule, reasoning_model
+    global graph_file, deep_schedule, reasoning_model
     
     engine = LibreAgentEngine(
-        quick_schedule=quick_schedule,
         deep_schedule=deep_schedule,
         reasoning_model=reasoning_model
     )
@@ -120,13 +118,11 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--graph-file")
     parser.add_argument("--deep-schedule", type=int, default=10)
-    parser.add_argument("--quick-schedule", type=int, default=5)
     parser.add_argument('--reasoning-model', type=str, default="gemini/gemini-2.0-flash-exp")
 
     args = parser.parse_args()
     graph_file = args.graph_file
     deep_schedule = args.deep_schedule
-    quick_schedule = args.quick_schedule
     reasoning_model = args.reasoning_model
 
     uvicorn.run(app, host=args.host, port=args.port)

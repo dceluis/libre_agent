@@ -6,28 +6,28 @@ from traceback import format_exc
 class ChatTool:
     name = 'ChatTool'
 
-    description = """
-<tool>
-    <name>Chat Tool</name>
-    <description>This tool adds a message to the chat.</description>
-    <parameters>
-        <parameter>
-            <name>content</name>
-            <description>The content of the message.</description>
-            <type>string</type>
-            <required>True</required>
-        </parameter>
-        <parameter>
-            <name>parse_mode</name>
-            <description>Markdown parsing mode: 'markdown' or 'plaintext' (default). Only use markdown if you can ensure proper formatting.</description>
-            <type>string</type>
-            <required>False</required>
-            <default>plaintext</default>
-            <options>markdown,plaintext</options>
-        </parameter>
-    </parameters>
-</tool>
-"""
+#     description = """
+# <tool>
+#     <name>Chat Tool</name>
+#     <description>This tool adds a message to the chat.</description>
+#     <parameters>
+#         <parameter>
+#             <name>content</name>
+#             <description>The content of the message.</description>
+#             <type>string</type>
+#             <required>True</required>
+#         </parameter>
+#         <parameter>
+#             <name>parse_mode</name>
+#             <description>Markdown parsing mode: 'markdown' or 'plaintext' (default). Only use markdown if you can ensure proper formatting.</description>
+#             <type>string</type>
+#             <required>False</required>
+#             <default>plaintext</default>
+#             <options>markdown,plaintext</options>
+#         </parameter>
+#     </parameters>
+# </tool>
+# """
 
     def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory

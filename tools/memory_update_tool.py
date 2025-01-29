@@ -4,41 +4,42 @@ from memory_graph import MemoryGraph
 
 class MemoryUpdateTool:
     name = "MemoryUpdateTool"
-    description = """
-<tool>
-    <name>Memory Update Tool</name>
-    <description>This tool can update a RECALLED memory's metadata and content.</description>
-    <guidelines>
-Use this tool often to keep memories up-to-date with the latest information.
-You can only update memories that are marked as 'recalled' from the Recalled Memories section.
-    </guidelines>
-    <parameters>
-        <parameter>
-            <name>memory_id</name>
-            <description>ID of memory to update</description>
-            <guidelines>
-Only use this tool if you have a valid memory ID in the format: mem-<random_string>.
-            </guidelines>
-            <required>True</required>
-        </parameter>
-        <parameter>
-            <name>content</name>
-            <description>the contents of the memory.</description>
-            <required>False</required>
-        </parameter>
-        <parameter>
-            <name>priority_level</name>
-            <description>enum: CORE, HIGH, MEDIUM, LOW, BACKGROUND</description>
-            <required>False</required>
-        </parameter>
-        <parameter>
-            <name>temporal_scope</name>
-            <description>enum: 'short_term', 'long_term'</description>
-            <required>False</required>
-        </parameter>
-    </parameters>
-</tool>
-"""
+#     description = """
+# <tool>
+#     <name>Memory Update Tool</name>
+#     <description>This tool can update a RECALLED memory's metadata and content.</description>
+#     <guidelines>
+# Use this tool often to keep memories up-to-date with the latest information.
+# You can only update memories that are marked as 'recalled' from the Recalled Memories section.
+#     </guidelines>
+#     <parameters>
+#         <parameter>
+#             <name>memory_id</name>
+#             <description>ID of memory to update</description>
+#             <guidelines>
+# Only use this tool if you have a valid memory ID in the format: mem-<random_string>.
+#             </guidelines>
+#             <required>True</required>
+#         </parameter>
+#         <parameter>
+#             <name>content</name>
+#             <description>the contents of the memory.</description>
+#             <required>False</required>
+#         </parameter>
+#         <parameter>
+#             <name>priority_level</name>
+#             <description>enum: CORE, HIGH, MEDIUM, LOW, BACKGROUND</description>
+#             <required>False</required>
+#         </parameter>
+#         <parameter>
+#             <name>temporal_scope</name>
+#             <description>enum: 'short_term', 'long_term'</description>
+#             <required>False</required>
+#         </parameter>
+#     </parameters>
+# </tool>
+# """
+
     def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory
         self.mode = mode

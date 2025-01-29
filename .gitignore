@@ -36,8 +36,12 @@
 
 !benchmark/
 !benchmark/*.py
-!benchmark/*.yml
-!benchmark/*.yaml
+
+!benchmark/benchmarks/
+!benchmark/benchmarks/**
+!benchmark/benchmarks/**/*.yml
+!benchmark/benchmarks/**/*.yaml
+
 benchmark/tmp/**/*
 
 !bots/

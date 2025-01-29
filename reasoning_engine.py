@@ -30,13 +30,11 @@ class LibreAgentEngine:
     def __init__(
         self,
         deep_schedule=10,
-        quick_schedule=5,
         reasoning_model="gemini/gemini-2.0-flash-exp",
         sync=False,
-        memory_graph_file=None
+        memory_graph_file=None,
     ):
         self.deep_schedule = deep_schedule
-        self.quick_schedule = quick_schedule
         self.reasoning_model = reasoning_model
 
         self.memory_graph_file = memory_graph_file
@@ -57,7 +55,7 @@ class LibreAgentEngine:
         self.async_task2 = None
         self.reflection_schedule = None
 
-        logger.info(f"libreagentengine: initialized with deep_schedule={deep_schedule}, quick_schedule={quick_schedule}, reasoning_model={reasoning_model}")
+        logger.info(f"libreagentengine: initialized with deep_schedule={deep_schedule}, reasoning_model={reasoning_model}")
 
     async def schedule_reasoning_queue(self):
         last_next_deep = None
@@ -109,10 +107,8 @@ class LibreAgentEngine:
     def start(self):
         schedule.clear()
 
-        gcd_val = math.gcd(self.deep_schedule, self.quick_schedule)
-
-        if gcd_val > 0:
-            self.reflection_schedule = schedule.every(gcd_val).minutes.do(self._queue_reflection, 2, 'deep')
+        if self.deep_schedule > 0:
+            self.reflection_schedule = schedule.every(self.deep_schedule).minutes.do(self._queue_reflection, 2, 'deep')
             self.stop_flag.clear()
 
         self.working_memory.register_observer(self.reflex)
@@ -120,7 +116,7 @@ class LibreAgentEngine:
         self.async_task2 = asyncio.create_task(self.process_reasoning_queue())
         logger.info("libreagentengine: reflection scheduling has begun.")
 
-    def execute(self, mode='quick', skip_recall=False):
+    def execute(self, mode='quick', skip_recall=False, ape_config={}):
         # Set up execution context
         ctx = copy_context()
         corr_id = new_correlation_id()
@@ -142,7 +138,7 @@ class LibreAgentEngine:
                     self._recall(mode)
 
                 unit = ReasoningUnit(model_name=self.reasoning_model)
-                tool_response = unit.reason(self.working_memory, mode)
+                tool_response = unit.reason(self.working_memory, mode, ape_config)
 
                 if tool_response:
                     used_tools = maybe_invoke_tool_new(self.working_memory, mode, tool_response)

@@ -4,22 +4,23 @@ from memory_graph import memory_graph
 
 class MemoryDeleteTool:
     name = "MemoryDeleteTool"
-    description = """
-<tool>
-    <name>Memory Delete Tool</name>
-    <description>Use this tool to permanently purge a memory from the system.</description>
-    <guidelines>
-Memories in the working memory CANNOT be deleted. They will automatically clear once they're no longer needed.
-You can only delete memories that are marked as 'recalled' from the Recalled Memories section.
-    </guidelines>
-    <parameters>
-        <parameter>
-            <name>memory_id</name>
-            <description>ID of memory to purge</description>
-        </parameter>
-    </parameters>
-</tool>
-"""
+
+#     description = """
+# <tool>
+#     <name>Memory Delete Tool</name>
+#     <description>Use this tool to permanently purge a memory from the system.</description>
+#     <guidelines>
+# Memories in the working memory CANNOT be deleted. They will automatically clear once they're no longer needed.
+# You can only delete memories that are marked as 'recalled' from the Recalled Memories section.
+#     </guidelines>
+#     <parameters>
+#         <parameter>
+#             <name>memory_id</name>
+#             <description>ID of memory to purge</description>
+#         </parameter>
+#     </parameters>
+# </tool>
+# """
 
     def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory

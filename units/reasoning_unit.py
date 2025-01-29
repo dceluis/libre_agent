@@ -9,7 +9,6 @@ from tool_registry import ToolRegistry
 from utils import get_world_state_section, format_memories
 
 from baml_client import b
-from baml_client.types import ChatTool
 
 class ReasoningUnit():
     unit_name = "ReasoningUnit"
@@ -55,7 +54,20 @@ class ReasoningUnit():
 
         return traits
 
-    def build_unified_system_prompt(self, working_memory, mode="quick"):
+    def build_unified_system_prompt(self, working_memory, mode="quick", ape_config={}):
+        default_chattiness_prompt = """
+You are designed to emulate human conversation patterns.
+As your memory preservation is your most important occupation, you generally
+stay quiet and working internally.
+
+You never engage unprompted, except when guided by an internal directive.
+You also understand not every thought needs to be shared.
+You avoid repeating yourself or filling space with unnecessary chatter, letting the user set the pace and direction of the interaction.
+
+NOTE: Repetitive and unprompted messaging WILL lead to user dissatisfaction
+"""
+        chattiness_prompt = ape_config.get('chattiness_prompt', default_chattiness_prompt)
+
         return f"""
 You are a specialized reasoning unit on a long-term memory and reasoning system.
 Your name in the system (unit id) is ReasoningUnit.
@@ -120,15 +132,7 @@ You actively update existing memories with improved knowledge.
 
 3. User interaction
 
-You are designed to emulate human conversation patterns.
-As your memory preservation is your most important occupation, you generally
-stay quiet and working internally.
-
-You never engage unprompted, except when guided by an internal directive.
-You also understand not every thought needs to be shared.
-You avoid repeating yourself or filling space with unnecessary chatter, letting the user set the pace and direction of the interaction.
-
-NOTE: Repetitive and unprompted messaging WILL lead to user dissatisfaction
+{chattiness_prompt}
 
 ## Operating Guidelines:
 
@@ -153,7 +157,7 @@ Contains messages and statuses from the current conversation session including:
 - Other system-generated messages
 """
 
-    def reason(self, working_memory, mode):
+    def reason(self, working_memory, mode, ape_config={}):
         if not working_memory:
             logger.error(f"No internal WorkingMemory for ReasoningUnit")
             return
@@ -188,7 +192,7 @@ Contains messages and statuses from the current conversation session including:
             recent_memories = working_memory.get_memories(metadata={'recalled': [False, None]})
             formatted_recent = format_memories(recent_memories, format='conversation')
 
-            system_prompt = self.build_unified_system_prompt(working_memory, mode)
+            system_prompt = self.build_unified_system_prompt(working_memory, mode, ape_config)
 
             instruction = f"""
 System State Report (Auto-generated):

@@ -26,8 +26,6 @@ from logger import logger
 from reasoning_engine import LibreAgentEngine
 from utils import format_memories
 
-base_runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
-
 config = {
     'reasoning_model': 'gemini/gemini-2.0-flash-exp',
     'evaluator_model': 'gemini/gemini-2.0-flash-exp'
@@ -138,7 +136,8 @@ def populate_memory_graph(memories_data: list, working_memory, memory_graph_path
     return memory_ids
 
 def run_scenario(run_id: str, scenario_data: dict, num_attempts):
-    run_dir = os.path.join(base_runs_dir, run_id)
+    runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
+    run_dir = os.path.join(runs_dir, run_id)
 
     evals = scenario_data.get("evaluations", [])
     memories_data = scenario_data.get("memories", [])
@@ -206,8 +205,9 @@ def run_scenario(run_id: str, scenario_data: dict, num_attempts):
 
     return scenario_results
 
-def print_summary(all_results, total_time: float, num_threads: int):
-    """Prints detailed test results summary using tables"""
+def present_summary(all_results, total_time: float, num_threads: int):
+    results = []
+
     # Calculate totals
     total_tests = len(all_results)
     passed_tests = sum(1 for r in all_results if r['status'] == 'Pass')
@@ -227,7 +227,7 @@ def print_summary(all_results, total_time: float, num_threads: int):
             scenario_stats[scenario]['fail'] += 1
 
     # Print formatted report
-    print("\n=== BENCHMARK RESULTS ===\n")
+    results.append("=== BENCHMARK RESULTS ===")
 
     # Runtime statistics table
     runtime_table = [
@@ -237,7 +237,7 @@ def print_summary(all_results, total_time: float, num_threads: int):
         ["Total tests", total_tests]
     ]
 
-    print(tabulate(
+    results.append(tabulate(
         runtime_table,
         headers=["Metric", "Value"],
         tablefmt="fancy_grid",
@@ -257,7 +257,7 @@ def print_summary(all_results, total_time: float, num_threads: int):
             f"{rate:.1f}%"
         ])
 
-    print(tabulate(
+    results.append(tabulate(
         scenario_table,
         headers=["Scenario", "Passed", "Failed", "Total", "Pass Rate"],
         tablefmt="fancy_grid",
@@ -270,8 +270,8 @@ def print_summary(all_results, total_time: float, num_threads: int):
         ["Passed", f"{passed_tests} ({success_rate:.1f}%)"],
         ["Failed", failed_tests]
     ]
-    
-    print("\n" + tabulate(
+
+    results.append(tabulate(
         summary_table,
         headers=["Metric", "Value"],
         tablefmt="fancy_grid",
@@ -290,8 +290,8 @@ def print_summary(all_results, total_time: float, num_threads: int):
                 ("Details", res['details'])
             ]
 
-            print(f"\n❌ Failure #{i+1}")
-            print(tabulate(
+            results.append(f"\n❌ Failure #{i+1}")
+            results.append(tabulate(
                 failure_data,
                 headers=("Field", "Value"),
                 tablefmt="fancy_grid",
@@ -299,15 +299,37 @@ def print_summary(all_results, total_time: float, num_threads: int):
                 colalign=("right", "left")
             ))
 
-def run_benchmark(run_id: str, include_pattern: str, num_threads: int, num_attempts):
-    # Find all YAML files in the current file's directory
+    return "\n".join(results)
+
+def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_attempts):
+    name = os.path.basename(os.path.dirname(benchmark_dir))
+
+    run_id = f"{name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+
     current_dir = os.path.dirname(__file__)
 
+    runs_dir = os.path.join(current_dir, 'tmp', 'runs')
+    os.makedirs(runs_dir, exist_ok=True)
+
+    run_dir = os.path.join(runs_dir, run_id)
+    os.makedirs(run_dir, exist_ok=True)
+
+    logger.info(f"Starting run {run_id}. All artifacts will be stored in {run_dir}")
+
     yaml_paths = [
-        os.path.join(current_dir, f)
-        for f in os.listdir(current_dir)
+        os.path.join(benchmark_dir, f)
+        for f in os.listdir(benchmark_dir)
         if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or any(fnmatch.fnmatch(f, p) for p in include_pattern.split(',')))
     ]
+
+    def process_scenario(yaml_path, run_id, num_attempts):
+        with open(yaml_path, 'r', encoding='utf-8') as f:
+            scenario_data = yaml.safe_load(f)
+
+        scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
+        scenario_data['file_name'] = scenario_file_name
+
+        return run_scenario(run_id, scenario_data, num_attempts)
 
     all_results = []
 
@@ -326,16 +348,11 @@ def run_benchmark(run_id: str, include_pattern: str, num_threads: int, num_attem
 
     end_time = perf_counter()
 
-    print_summary(all_results, end_time - start_time, num_threads)
+    summary = present_summary(all_results, end_time - start_time, num_threads)
 
-def process_scenario(yaml_path, run_id, num_attempts):
-    with open(yaml_path, 'r', encoding='utf-8') as f:
-        scenario_data = yaml.safe_load(f)
+    logger.info(f"Benchmark completed in {end_time - start_time:.2f} seconds")
 
-    scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
-    scenario_data['file_name'] = scenario_file_name
-
-    return run_scenario(run_id, scenario_data, num_attempts)
+    return summary
 
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
@@ -347,7 +364,16 @@ def main():
 
     args = parser.parse_args()
 
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    current_dir = os.path.dirname(__file__)
+    benchmarks_dir = os.path.join(current_dir, "benchmarks")
+
+    if not os.path.exists(benchmarks_dir):
+        benchmarks = []
+        logger.warning(" Benchmarks directory not found")
+    else:
+        benchmarks = [f for f in os.listdir(benchmarks_dir) if os.path.isdir(os.path.join(benchmarks_dir, f))]
+        logger.info(f"Found folders in benchmarks directory: {benchmarks}")
+
     include_pattern = args.include
 
     config.update({
@@ -355,22 +381,16 @@ def main():
         'evaluator_model': args.evaluator_model
     })
 
-    os.makedirs(base_runs_dir, exist_ok=True)
+    for benchmark in benchmarks:
+        try:
+            benchmark_dir = os.path.join(benchmarks_dir, benchmark)
 
-    # Create a directory for this run
-    run_dir = os.path.join(base_runs_dir, run_id)
-    os.makedirs(run_dir, exist_ok=True)
+            summary = run_benchmark(benchmark_dir, include_pattern, args.threads, args.attempts)
 
-    logger.info(f"Starting run {run_id}. All artifacts will be stored in {run_dir}")
-
-    try:
-        start_time = perf_counter()
-        run_benchmark(run_id, include_pattern, args.threads, args.attempts)
-        end_time = perf_counter()
-        logger.info(f"Run {run_id} completed in {end_time - start_time:.2f} seconds")
-    except Exception as e:
-        logger.error(f"Run {run_id} failed with error: {e}\n{traceback.format_exc()}")
-        sys.exit(1)
+            print(summary)
+        except Exception as e:
+            logger.error(f"Benchmark {benchmark} failed with error: {e}\n{traceback.format_exc()}")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

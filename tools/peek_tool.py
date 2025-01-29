@@ -9,19 +9,19 @@ from utils import get_world_state_section  # Import the utility function
 
 class PeekTool:
     name = "PeekTool"
-    # description = "Captures a screenshot of the current screen and analyzes it."
-    description = """
-<tool>
-    <name>Peek Tool</name>
-    <description>Captures a screenshot of the current screen and analyzes it.</description>
-    <parameters>
-        <parameter>
-            <name>unit_name</name>
-            <description>The name of the unit that is using the tool.</description>
-        </parameter>
-    </parameters>
-</tool>
-"""
+
+#     description = """
+# <tool>
+#     <name>Peek Tool</name>
+#     <description>Captures a screenshot of the current screen and analyzes it.</description>
+#     <parameters>
+#         <parameter>
+#             <name>unit_name</name>
+#             <description>The name of the unit that is using the tool.</description>
+#         </parameter>
+#     </parameters>
+# </tool>
+# """
     def __init__(self, working_memory, mode='quick', **kwargs):
         self.working_memory = working_memory
 

@@ -51,13 +51,12 @@ python main.py
 
 Command-Line Arguments:
  * --deep-schedule: Interval in minutes for deep reflections (default: 10).
- * --quick-schedule: Interval in minutes for quick reflections (default: 5).
  * --print-internals: If set, internal memories will be printed to the console.
 
 Example:
 
 ```bash
-python main.py --deep-schedule=4 --quick-schedule=2 --print-internals
+python main.py --deep-schedule=4 --print-internals
 ```
 
 This command schedules deep reflections every 4 minutes and quick reflections every 2 minutes while printing internal memories.
