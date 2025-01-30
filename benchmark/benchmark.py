@@ -21,7 +21,7 @@ from natural_time_parser import NaturalTimeParser
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from memory_graph import MemoryGraph
+from memory_graph import memory_graph, MemoryGraph
 from logger import logger
 from reasoning_engine import LibreAgentEngine
 from utils import format_memories
@@ -31,17 +31,15 @@ config = {
     'evaluator_model': 'gemini/gemini-2.0-flash-exp'
 }
 
-def run_qa_eval(eval: dict, engine, wm):
-    question = eval.get("question")
-
-    if question:
-        wm.add_interaction("user", question)
-
-    skip_recall = eval.get("skip_recall", False)
-
-    engine.execute('quick', skip_recall=skip_recall)
-
+def qa_eval(wm):
+    question_memory = wm.get_memories(memory_type="external", metadata={"unit_name": "User"}, last=1)
     answer_memory = wm.get_memories(memory_type="external", metadata={"unit_name": "ReasoningUnit"}, last=1)
+
+    question = "<NO QUESTION>"
+    if question_memory:
+        question_content = question_memory[0]['content']
+        if question_content:
+            question = question_content
 
     answer = "<NO ANSWER>"
     if answer_memory:
@@ -51,16 +49,7 @@ def run_qa_eval(eval: dict, engine, wm):
 
     return "\n".join([f"Question: {question}", f"Answer: {answer}"])
 
-def run_inspect_eval(eval: dict, engine, wm):
-    question = eval.get("question")
-    if question:
-        wm.add_interaction("user", question)
-
-    skip_recall = eval.get("skip_recall", False)
-
-    engine.execute('quick', skip_recall=skip_recall)
-
-    # Get the recalled memories
+def inspect_eval(wm):
     recalled_memories = wm.get_memories(metadata={'recalled': True})
 
     # Create a scenario string with the recalled memories
@@ -82,7 +71,7 @@ def run_inspect_eval(eval: dict, engine, wm):
 
     return scene
 
-def populate_memory_graph(memories_data: list, working_memory, memory_graph_path: str):
+def populate_memory_graph(memories_data: list, working_memory):
     time_parser = NaturalTimeParser()
 
     memory_ids = []
@@ -110,7 +99,7 @@ def populate_memory_graph(memories_data: list, working_memory, memory_graph_path
             "temporal_scope": "short_term"
         }
 
-        memory_id = MemoryGraph().add_memory(
+        memory_id = memory_graph.add_memory(
             timestamp=timestamp,
             memory_type="external",
             content=content,
@@ -131,11 +120,10 @@ def populate_memory_graph(memories_data: list, working_memory, memory_graph_path
                 "timestamp": timestamp
             })
 
-    logger.info(f"Populated memory graph at {memory_graph_path} with {len(memories_data)} memories.")
 
     return memory_ids
 
-def run_scenario(run_id: str, scenario_data: dict, num_attempts):
+def run_scenario(run_id: str, scenario_data: dict, num_attempts: int, ape_config: dict = {}):
     runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
     run_dir = os.path.join(runs_dir, run_id)
 
@@ -147,7 +135,7 @@ def run_scenario(run_id: str, scenario_data: dict, num_attempts):
     scenario_results = []
     for eval_idx, eval in enumerate(evals):
         references = eval.get("references", [])
-        question = eval.get("question", "<no question>")
+        question = eval.get("question")
 
         if isinstance(references, str):
             references = [references]
@@ -169,17 +157,24 @@ def run_scenario(run_id: str, scenario_data: dict, num_attempts):
             engine = LibreAgentEngine(sync=True, reasoning_model=config['reasoning_model'])
             wm = engine.working_memory
 
+            if question:
+                memories_data.append({ "role": "user", "content": question, "working_memory": True, })
+
             # Populate the memory graph for each YAML file
-            populate_memory_graph(memories_data, wm, temp_graph_path)
+            populate_memory_graph(memories_data, wm)
+
+            skip_recall = eval.get("skip_recall", False)
+
+            engine.execute('quick', skip_recall=skip_recall, ape_config=ape_config)
 
             eval_type = eval.get("type", "")
             if eval_type == "qa":
-                scenario = run_qa_eval(eval, engine, wm)
+                scenario = qa_eval(wm)
             elif eval_type == "inspect":
-                scenario = run_inspect_eval(eval, engine, wm)
+                scenario = inspect_eval(wm)
             else:
                 logger.warning(f"eval type '{eval_type}' unknown, running as Q&A eval")
-                scenario = run_qa_eval(eval, engine, wm)
+                scenario = qa_eval(wm)
 
             evaluator = Evaluator(model=config['evaluator_model'])
             evaluation = evaluator.evaluate_answer(scenario=scenario, references=references)
@@ -189,7 +184,6 @@ def run_scenario(run_id: str, scenario_data: dict, num_attempts):
             scenario_results.append({
                 "scenario": scenario_file_name,
                 "attempt": scenario,
-                "question": question,
                 "status": status,
                 "details": evaluation,
                 "references": "\n".join(references)
@@ -215,6 +209,14 @@ def present_summary(all_results, total_time: float, num_threads: int):
     success_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
     tests_per_sec = total_tests / total_time if total_time > 0 else 0
 
+    all_stats = {
+        "Total tests": total_tests,
+        "Passed tests": passed_tests,
+        "Failed tests": failed_tests,
+        "Success rate": success_rate,
+        "Tests per second": tests_per_sec
+    }
+
     # Group by scenario
     scenario_stats = {}
     for res in all_results:
@@ -229,17 +231,19 @@ def present_summary(all_results, total_time: float, num_threads: int):
     # Print formatted report
     results.append("=== BENCHMARK RESULTS ===")
 
-    # Runtime statistics table
+    # Runtime and sumnary table
     runtime_table = [
         ["Total duration", f"{total_time:.2f}s"],
         ["Parallel threads", num_threads],
         ["Tests/second", f"{tests_per_sec:.2f}"],
-        ["Total tests", total_tests]
+
+        ["Total tests", total_tests],
+        ["Passed", f"{passed_tests} ({success_rate:.1f}%)"],
+        ["Failed", failed_tests]
     ]
 
     results.append(tabulate(
         runtime_table,
-        headers=["Metric", "Value"],
         tablefmt="fancy_grid",
         numalign="center"
     ))
@@ -264,27 +268,12 @@ def present_summary(all_results, total_time: float, num_threads: int):
         numalign="center"
     ))
 
-    # Overall summary table
-    summary_table = [
-        ["Total Tests", total_tests],
-        ["Passed", f"{passed_tests} ({success_rate:.1f}%)"],
-        ["Failed", failed_tests]
-    ]
-
-    results.append(tabulate(
-        summary_table,
-        headers=["Metric", "Value"],
-        tablefmt="fancy_grid",
-        numalign="center"
-    ))
-
     # Failure details with vertical tables
     if failed_tests > 0:
-        print("\n## FAILED TEST DETAILS ##")
+        results.append("\n## FAILED TEST DETAILS ##")
         for i, res in enumerate([r for r in all_results if r['status'] == 'Fail']):
             failure_data = [
                 ("Scenario", res['scenario']),
-                ("Question", res['question']),
                 ("Attempt", res['attempt']),
                 ("References", res['references']),
                 ("Details", res['details'])
@@ -293,16 +282,15 @@ def present_summary(all_results, total_time: float, num_threads: int):
             results.append(f"\n❌ Failure #{i+1}")
             results.append(tabulate(
                 failure_data,
-                headers=("Field", "Value"),
                 tablefmt="fancy_grid",
                 maxcolwidths=[None, 80],  # Wrap long values at 80 characters
                 colalign=("right", "left")
             ))
 
-    return "\n".join(results)
+    return (all_stats, "\n".join(results))
 
-def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_attempts):
-    name = os.path.basename(os.path.dirname(benchmark_dir))
+def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_attempts: int, ape_config: dict={}):
+    name = os.path.basename(benchmark_dir)
 
     run_id = f"{name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
 
@@ -322,22 +310,19 @@ def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_att
         if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or any(fnmatch.fnmatch(f, p) for p in include_pattern.split(',')))
     ]
 
-    def process_scenario(yaml_path, run_id, num_attempts):
-        with open(yaml_path, 'r', encoding='utf-8') as f:
-            scenario_data = yaml.safe_load(f)
-
-        scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
-        scenario_data['file_name'] = scenario_file_name
-
-        return run_scenario(run_id, scenario_data, num_attempts)
-
     all_results = []
 
     start_time = perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = []
         for yaml_path in yaml_paths:
-            futures.append(executor.submit(process_scenario, yaml_path, run_id, num_attempts))
+            with open(yaml_path, 'r', encoding='utf-8') as f:
+                scenario_data = yaml.safe_load(f)
+
+            scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
+            scenario_data['file_name'] = scenario_file_name
+
+            futures.append(executor.submit(run_scenario, run_id, scenario_data, num_attempts, ape_config))
 
         for future in concurrent.futures.as_completed(futures):
             try:
@@ -348,11 +333,11 @@ def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_att
 
     end_time = perf_counter()
 
-    summary = present_summary(all_results, end_time - start_time, num_threads)
+    stats, summary = present_summary(all_results, end_time - start_time, num_threads)
 
     logger.info(f"Benchmark completed in {end_time - start_time:.2f} seconds")
 
-    return summary
+    return stats, summary
 
 def main():
     parser = argparse.ArgumentParser(description="Populate a memory graph from a YAML chat scenario.")
@@ -385,7 +370,7 @@ def main():
         try:
             benchmark_dir = os.path.join(benchmarks_dir, benchmark)
 
-            summary = run_benchmark(benchmark_dir, include_pattern, args.threads, args.attempts)
+            _, summary = run_benchmark(benchmark_dir, include_pattern, args.threads, args.attempts)
 
             print(summary)
         except Exception as e:

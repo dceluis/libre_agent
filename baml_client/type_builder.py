@@ -22,7 +22,7 @@ class TypeBuilder(_TypeBuilder):
         super().__init__(classes=set(
           ["ChatTool","MemoryCreateTool","MemoryDeleteTool","MemoryUpdateTool",]
         ), enums=set(
-          ["ParseMode","PriorityLevel","Role","TemporalScope","ToolName",]
+          ["ParseMode","PriorityLevel","Role","TemporalScope",]
         ))
 
 

@@ -64,13 +64,6 @@ class TemporalScope(str, Enum):
     ShortTerm = "ShortTerm"
     LongTerm = "LongTerm"
 
-class ToolName(str, Enum):
-    
-    MemoryCreateTool = "MemoryCreateTool"
-    MemoryUpdateTool = "MemoryUpdateTool"
-    MemoryDeleteTool = "MemoryDeleteTool"
-    ChatTool = "ChatTool"
-
 class ChatTool(BaseModel):
     name: Literal["ChatTool"]
     content: str

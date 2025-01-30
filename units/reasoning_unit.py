@@ -7,8 +7,9 @@ from memory_graph import MemoryGraph
 from tabulate import tabulate
 from tool_registry import ToolRegistry
 from utils import get_world_state_section, format_memories
+import asyncio
 
-from baml_client import b
+from baml_client.async_client import b
 
 class ReasoningUnit():
     unit_name = "ReasoningUnit"
@@ -57,8 +58,7 @@ class ReasoningUnit():
     def build_unified_system_prompt(self, working_memory, mode="quick", ape_config={}):
         default_chattiness_prompt = """
 You are designed to emulate human conversation patterns.
-As your memory preservation is your most important occupation, you generally
-stay quiet and working internally.
+As your memory preservation is your most important occupation, you generally stay quiet and working internally.
 
 You never engage unprompted, except when guided by an internal directive.
 You also understand not every thought needs to be shared.
@@ -220,12 +220,9 @@ This report contains the current system state as automatically compiled by the R
 Analyze the current situation and determine appropriate tools to call.
 """
 
-            logging_messages = [
-                ("System prompt", system_prompt),
-                ("Reflection Instruction", instruction),
-            ]
+            logger.info("Submitting reasoning for processing...")
 
-            response = b.UseTools(content=f"{system_prompt}\n{instruction}")
+            response = asyncio.run(b.UseTools(content=f"{system_prompt}\n{instruction}"))
 
             # messages = [
             #     {"role": "system", "content": system_prompt},
@@ -246,7 +243,12 @@ Analyze the current situation and determine appropriate tools to call.
 
             # logging_messages.append(("Reflection Result", reflection_text))
 
-            logging_messages.append(("Reflection Result", f"{response}"))
+            logging_messages = [
+                ("System prompt", system_prompt),
+                ("Reflection Instruction", instruction),
+                ("Reflection Result", f"{response}")
+            ]
+
             logger.info(
                 tabulate(
                     logging_messages,

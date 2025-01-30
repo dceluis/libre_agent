@@ -42,7 +42,7 @@ class MemoryGraph:
         with open(graph_file, "wb") as f:
             pickle.dump(graph, f)
 
-        logger.info("Memory graph saved successfully.")
+        logger.info(f"Memory graph saved successfully at {graph_file}.")
 
     def generate_memory_id(self):
         random_part = secrets.token_hex(4)[:8]

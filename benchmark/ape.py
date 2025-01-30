@@ -1,18 +1,73 @@
-import os
-import sys
 import json
 from typing import List
+from unittest import result
 from litellm import completion
 import litellm
 from tabulate import tabulate
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from benchmark import run_benchmark
+
 from logger import logger
+import argparse
 
 class APE:
     def __init__(self, model="gemini/gemini-2.0-flash-exp"):
         self.model = model
         litellm.suppress_debug_info = True
+
+    def optimize_prompt(self, initial_prompt: str, ape_key: str, benchmark_path: str, num_variations: int = 5, attempts: int = 3, threads: int = 1):
+        try:
+            # Generate variations of the default prompt
+            variations = self.generate_variations(initial_prompt, num_variations)
+
+            # Run benchmarks for each variation
+            results = []
+            for i, prompt in enumerate(variations):
+                ape_config = {
+                    ape_key: prompt,
+                }
+
+                logger.info(f"\nRunning benchmark {i+1}/{num_variations} with config: {ape_config}")
+
+                stats, summary = run_benchmark(
+                    benchmark_path,
+                    include_pattern="*",
+                    num_threads=threads,
+                    num_attempts=attempts,
+                    ape_config=ape_config
+                )
+
+                success_rate = stats['success_rate']
+
+                results.append({
+                    "prompt": prompt,
+                    "success_rate": success_rate,
+                    "details": summary
+                })
+
+            # Select the best performing prompt
+            if results:
+                best_result = max(results, key=lambda x: x['success_rate'])
+            else:
+                best_result = {
+                    "prompt": initial_prompt
+                }
+
+            logger.info(
+                "\nBenchmark Results:\n\n" +
+                tabulate(
+                    [(r["prompt"], r["success_rate"]) for r in results],
+                    headers=["Prompt", "Success Rate"],
+                    tablefmt="fancy_grid"
+                )
+            )
+
+            logger.info(f"Best prompt selected: '{best_result['prompt']}'")
+            return best_result['prompt']
+
+        except Exception as e:
+            logger.error(f"Prompt optimization failed: {str(e)}")
+            return initial_prompt
 
     def generate_variations(self, prompt: str, n: int = 5) -> List[str]:
         """
@@ -94,3 +149,30 @@ Generate exactly {n} variations. Format as valid jsonl:
 
         return variations
 
+def main():
+    """Main method to run APE as a script"""
+    parser = argparse.ArgumentParser(description='Optimize prompts using APE')
+    parser.add_argument('--benchmark-path', type=str, help='Path to benchmark file')
+    parser.add_argument('--initial-prompt', type=str, default='Default prompt', help='Initial prompt to optimize')
+    parser.add_argument('--ape-key', type=str, default='ape_prompt', help='The prompt section to replace with the automated prompt')
+    parser.add_argument('--num-variations', type=int, default=5, help='Number of prompt variations to generate')
+    parser.add_argument('--attempts', type=int, default=3, help='Number of attempts per scenario')
+    parser.add_argument('--threads', '-j', type=int, default=1, help='Number of parallel threads to use for processing scenarios')
+
+    args = parser.parse_args()
+
+    ape = APE()
+
+    optimized_prompt = ape.optimize_prompt(
+        initial_prompt=args.initial_prompt,
+        ape_key=args.ape_key,
+        benchmark_path=args.benchmark_path,
+        num_variations=args.num_variations,
+        attempts=args.attempts,
+        threads=args.threads,
+    )
+
+    print(f"Optimized prompt: {optimized_prompt}")
+
+if __name__ == '__main__':
+    main()

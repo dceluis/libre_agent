@@ -5,7 +5,7 @@ client<llm> Openrouter {
   options {
     base_url "https://openrouter.ai/api/v1"
     api_key env.OPENROUTER_API_KEY
-    model "deepseek/deepseek-r1-distill-llama-70b"
+    model "deepseek/deepseek-r1-distill-qwen-32b"
     headers {
       "HTTP-Referer" "YOUR-SITE-URL" // Optional
       "X-Title" "YOUR-TITLE" // Optional
