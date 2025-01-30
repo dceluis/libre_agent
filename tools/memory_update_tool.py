@@ -46,16 +46,19 @@ class MemoryUpdateTool:
 
     def validate_priority_level(self, priority_level):
         valid_levels = ['CORE', 'HIGH', 'MEDIUM', 'LOW', 'BACKGROUND']
-        if priority_level and priority_level in valid_levels:
-            return priority_level
+        if priority_level and priority_level.upper() in valid_levels:
+            return priority_level.upper()
+        else:
+            return 'BACKGROUND'
 
     def validate_temporal_scope(self, temporal_scope):
         valid_scopes = ['short_term', 'long_term']
-        if temporal_scope in valid_scopes:
-            return temporal_scope
+        if temporal_scope and temporal_scope.lower() in valid_scopes:
+            return temporal_scope.lower()
+        else:
+            return 'short_term'
 
-    def run(self, memory_id: str, content: str | None = None,
-            priority_level: str | None = None, temporal_scope: str | None = None, **kwargs):
+    def run(self, memory_id: str, content: str | None = None, priority_level: str | None = None, temporal_scope: str | None = None, **kwargs):
         memory_graph = MemoryGraph()
 
         # Validate inputs
@@ -85,6 +88,12 @@ class MemoryUpdateTool:
             memory['content'] = content if content else memory['content']
 
         logger.debug(f"Memory updated: id='{memory_id}', " f"priority_level='{priority_level}'")
+        logger.debug(
+                f"Memory updated:"
+                f", priority={priority_level}"
+                f", scope={temporal_scope}"
+                f", content={content}"
+        )
 
         return True
 

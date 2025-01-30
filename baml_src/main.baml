@@ -27,15 +27,15 @@ class MemoryDeleteTool {
 }
 
 enum Role {
-  Reflection
-  Episodic
-  Semantic
-  Procedural
+  REFLECTION
+  EPISODIC
+  SEMANTIC
+  PROCEDURAL
 }
 
 enum ParseMode {
-  Plaintext
-  Markdown
+  PLAINTEXT
+  MARKDOWN
 }
 
 enum PriorityLevel {
@@ -47,12 +47,12 @@ enum PriorityLevel {
 }
 
 enum TemporalScope {
-  ShortTerm
-  LongTerm
+  SHORT_TERM
+  LONG_TERM
 }
 
 function UseTools(content: string) -> (ChatTool | MemoryUpdateTool | MemoryCreateTool | MemoryDeleteTool)[] {
-  client Openrouter
+  client Groq
   prompt #"
     {{ content }}
 

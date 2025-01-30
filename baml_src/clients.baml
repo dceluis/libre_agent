@@ -13,6 +13,15 @@ client<llm> Openrouter {
   }
 }
 
+client<llm> Groq {
+  provider openai-generic
+  options {
+    base_url "https://api.groq.com/openai/v1"
+    api_key env.GROQ_API_KEY
+    model "deepseek-r1-distill-llama-70b"
+  }
+}
+
 client<llm> CustomGPT4o {
   provider openai
   options {

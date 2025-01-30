@@ -26,7 +26,7 @@ class MemoryDeleteTool:
         self.working_memory = working_memory
         self.mode = mode
 
-    def run(self, memory_id: str):
+    def run(self, memory_id: str, **kwargs):
         recalled_memories = self.working_memory.get_memories(metadata={'recalled': True})
         recent_memories = self.working_memory.get_memories(metadata={'recalled': [False, None]})
 

@@ -57,13 +57,29 @@ class MemoryCreateTool:
 
     def validate_role(self, role):
         valid_roles = ['reflection', 'episodic', 'semantic', 'procedural']
-        if role and role in valid_roles:
-            return role
+        if role and role.lower() in valid_roles:
+            return role.lower()
         else:
             return 'reflection'
 
+    def validate_priority_level(self, priority_level):
+        valid_levels = ['CORE', 'HIGH', 'MEDIUM', 'LOW', 'BACKGROUND']
+        if priority_level and priority_level.upper() in valid_levels:
+            return priority_level.upper()
+        else:
+            return 'BACKGROUND'
+
+    def validate_temporal_scope(self, temporal_scope):
+        valid_scopes = ['short_term', 'long_term']
+        if temporal_scope and temporal_scope.lower() in valid_scopes:
+            return temporal_scope.lower()
+        else:
+            return 'short_term'
+
     def run(self, unit_name, content, temporal_scope='short_term', role='reflection', priority_level='BACKGROUND', **kwargs):
         role = self.validate_role(role)
+        temporal_scope = self.validate_temporal_scope(temporal_scope)
+        priority_level = self.validate_priority_level(priority_level)
 
         metadata = {
             'temporal_scope': temporal_scope,

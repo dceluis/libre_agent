@@ -8,7 +8,7 @@ from logger import logger
 
 class Evaluator:
 
-    def __init__(self, model="gemini/gemini-2.0-flash-exp"):
+    def __init__(self, model="openrouter/deepseek/deepseek-r1-distill-qwen-32b"):
         self.model = model
 
     def evaluate_answer(self, scenario: str, references: list | None = None) -> str:

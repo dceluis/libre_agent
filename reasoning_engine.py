@@ -179,7 +179,11 @@ class LibreAgentEngine:
     def _recall(self, mode='quick'):
         ctx = reasoning_context.get()
         logger.debug("Starting recall process", extra={'correlation_id': ctx['correlation_id']})
-        exclude_ids = [m['memory_id'] for m in self.working_memory.memories]
+
+        recalled_memories = self.working_memory.get_memories(metadata={'recalled': True})
+        recent_memories = self.working_memory.get_memories(metadata={'recalled': [False, None]}, last=40)
+
+        exclude_ids = [m['memory_id'] for m in self.working_memory.memories if m['memory_id'] != 'N/A']
         logger.debug(f"Excluding {len(exclude_ids)} existing memories from recall")
 
         if mode == 'quick':
@@ -200,7 +204,9 @@ class LibreAgentEngine:
         for memory in recalled:
             memory['metadata']['recalled'] = True
 
+        self.working_memory.memories = recalled_memories
         self.working_memory.memories.extend(recalled)
+        self.working_memory.memories.extend(recent_memories)
 
         if ctx['memory_ids'] is None:
             ctx['memory_ids'] = []

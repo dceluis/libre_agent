@@ -41,8 +41,8 @@ def all_succeeded(checks: Dict[CheckName, Check]) -> bool:
 
 class ParseMode(str, Enum):
     
-    Plaintext = "Plaintext"
-    Markdown = "Markdown"
+    PLAINTEXT = "PLAINTEXT"
+    MARKDOWN = "MARKDOWN"
 
 class PriorityLevel(str, Enum):
     
@@ -54,15 +54,15 @@ class PriorityLevel(str, Enum):
 
 class Role(str, Enum):
     
-    Reflection = "Reflection"
-    Episodic = "Episodic"
-    Semantic = "Semantic"
-    Procedural = "Procedural"
+    REFLECTION = "REFLECTION"
+    EPISODIC = "EPISODIC"
+    SEMANTIC = "SEMANTIC"
+    PROCEDURAL = "PROCEDURAL"
 
 class TemporalScope(str, Enum):
     
-    ShortTerm = "ShortTerm"
-    LongTerm = "LongTerm"
+    SHORT_TERM = "SHORT_TERM"
+    LONG_TERM = "LONG_TERM"
 
 class ChatTool(BaseModel):
     name: Literal["ChatTool"]

@@ -37,7 +37,7 @@ class APE:
                     ape_config=ape_config
                 )
 
-                success_rate = stats['success_rate']
+                success_rate = stats.get('Success rate', 0.0)
 
                 results.append({
                     "prompt": prompt,

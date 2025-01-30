@@ -66,7 +66,7 @@ def format_memories(memories, format: str = 'default'):
 
             type_str = ' said' if memory_type == 'external' else ' - internal'
             if unit_name:
-                unit_str = f"{unit_name} (you)" if unit_name == 'ReasoningUnit' else unit_name
+                unit_str = f"Assistant (you)" if unit_name == 'ReasoningUnit' else unit_name
             else:
                 unit_str = 'System'
 
@@ -89,10 +89,7 @@ def maybe_invoke_tool_new(working_memory, mode='quick', response=None):
 
         if tool:
             try:
-                params_dict = {}
-
-                for param_name, param_value in response_tool:
-                    params_dict[param_name.strip()] = param_value.strip()
+                params_dict = response_tool.model_dump()
 
                 logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
 

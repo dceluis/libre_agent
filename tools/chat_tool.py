@@ -33,7 +33,16 @@ class ChatTool:
         self.working_memory = working_memory
         self.mode = mode
 
+    def validate_parse_mode(self, parse_mode):
+        valid_parse_modes = ['plaintext', 'markdown']
+        if parse_mode and parse_mode.lower() in valid_parse_modes:
+            return parse_mode.lower()
+        else:
+            return 'reflection'
+
     def run(self, content, parse_mode='plaintext', **kwargs):
+        parse_mode = self.validate_parse_mode(parse_mode)
+
         if content:
             try:
                 logger.info(f"Content provided: {content}")
