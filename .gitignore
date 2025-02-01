@@ -45,6 +45,8 @@
 benchmark/tmp/**/*
 
 !bots/
+!bots/*.sh
+!bots/Dockerfile
 !bots/*.py
 
 !baml_client/

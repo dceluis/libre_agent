@@ -6,6 +6,7 @@ pytest==7.2.0
 pytest-mock==3.10.0
 litellm==1.55.9
 python-json-logger==2.0.7
+baml-py==0.73.5
 
 # web ui
 fastapi
