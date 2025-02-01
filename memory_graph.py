@@ -197,5 +197,4 @@ class MemoryGraph:
         logger.info(f"Generated memory graph statistics: {stats}")
         return stats
 
-
 memory_graph = MemoryGraph()

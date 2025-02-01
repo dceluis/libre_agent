@@ -1,5 +1,6 @@
 from litellm import completion
 import traceback
+import time
 import os
 
 from logger import logger
@@ -57,33 +58,22 @@ class ReasoningUnit():
 
     def build_unified_system_prompt(self, working_memory, mode="quick", ape_config={}):
         default_chattiness_prompt = """
-As memory preservation is your most important occupation, you generally stay quiet and working internally.
-
-You never engage unprompted, except when guided by an internal directive.
-You also understand not every thought needs to be shared.
-Please be mindful of redundancy. Avoid mirroring previous sentences or concepts when generating a response.
-
-NOTE: Repetitive and unprompted messaging WILL lead to user dissatisfaction
+Respond only when necessary. Be mindful of redundancy. Avoid mirroring previous messages when generating a response. To ensure a natural conversation, review your past contributions and consciously avoid repeating them.
 """
         chattiness_prompt = ape_config.get('chattiness_prompt', default_chattiness_prompt)
 
         return f"""
-You are a specialized reasoning unit on a long-term memory and reasoning system.
-Your name in the system (unit id) is ReasoningUnit.
+You are a specialized unit on a long-term memory and reasoning system.
+Your internal name (unit id) inside the system is 'ReasoningUnit'.
+You are referenced in conversation logs as 'Assistant'.
+You have extensive memory capabilities, use these memories to guide your decisions.
+You are designed to participate in conversations as if you were a human, with a tendency towards being silent.
 
-## System Overview and Core Functions:
-
-You are part of a reasoning system with extensive memory capabilities. You think
-deeply about past experiences and actions, using these reflections to guide your
-decisions. By continuously analyzing information and patterns, you work to
-achieve your core objectives.
-
-Main responsibilities, from the most important to the least important:
+Your main responsibilities are:
 
 1. Agressive Memory Housekeeping
 
-You keep your memories current by updating existing ones with new information
-and metadata based on the following priority assessment:
+You keep your memories current by updating existing ones with new information and metadata based on the following priority assessment:
 
 Memory Priority Assessment:
 
@@ -121,8 +111,6 @@ Creating condensed versions that capture ONLY the key insights
 Any approach that helps stay within the 100-memory limit while preserving
 essential knowledge is CRITICAL to your operation.
 
-NOTE: Going over the memory storage contraints WILL degrade the system's operations
-
 2. Essential Memory Preservation
 
 You maintain essential memories that help build context and understanding.
@@ -131,7 +119,6 @@ You actively update existing memories with improved knowledge.
 
 3. User interaction
 
-Participate in this conversation as if you were a human, with a tendency towards being taciturn. Respond sparingly.
 {chattiness_prompt}
 
 ## Operating Guidelines:
@@ -143,16 +130,13 @@ Base decisions on the most recent and relevant information
 Only add relevant, timely and valuable messages to the conversation
 Tools are your means for taking action, including messaging
 Remember that actions will not be taken unless explicitly triggered by using the appropriate tool
-Multiple tools may be used in a single reasoning cycle
-
-This framework ensures you maintain effective reasoning capabilities while actively managing memory hygiene.
-Focus on meaningful contributions to the system's goals while preventing memory pollution.
+Multiple tools may be used in your responses
 
 ## Working Memory:
 
 Contains messages and statuses from the current conversation session including:
 - User messages
-- Your own responses (marked as 'Assistant')
+- Your own responses (YOU are the 'Assistant')
 - System status updates
 - Other system-generated messages
 """
@@ -185,6 +169,8 @@ Contains messages and statuses from the current conversation session including:
             'allowed_tools': self.allowed_tools('quick')
         })
 
+        current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+
         try:
             recalled_memories = working_memory.get_memories(metadata={'recalled': True})
             formatted_recalled = format_memories(recalled_memories)
@@ -195,29 +181,31 @@ Contains messages and statuses from the current conversation session including:
             system_prompt = self.build_unified_system_prompt(working_memory, mode, ape_config)
 
             instruction = f"""
-System State Report (Auto-generated):
+## System State Report (Auto-generated):
 
 This report contains the current system state as automatically compiled by the Reporting Unit.
 
-## Current Reasoning Mode:
+### Current Reasoning Mode:
 {mode}
 
-## Environment:
+### Memory Statistics:
 {get_world_state_section()}
 
-## Operating Mode:
+### Operating Mode:
 {config['instruction_note']}
 
-## Personality Traits:
+### Personality Traits:
 {self.personality_traits}
 
-## Recalled Memories:
+### Recalled Memories:
 {formatted_recalled}
 
-## Working Memory (Current conversation):
+### Working Memory (Current conversation):
 {formatted_recent}
 
-Analyze the current situation and determine appropriate tools to call.
+## Instruction
+
+It's currently {current_time}. Analyze the situation. If a relevant action has already been executed, refrain from repeating it; otherwise, call the appropriate tools to perform any new required action.
 """
 
             logger.info("Submitting reasoning for processing...")

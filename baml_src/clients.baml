@@ -1,6 +1,35 @@
 // Learn more about clients at https://docs.boundaryml.com/docs/snippets/clients/overview
 
-client<llm> Openrouter {
+
+client<llm> Gemini {
+  provider google-ai
+  options {
+    api_key env.GEMINI_API_KEY
+    model "gemini-2.0-flash-thinking-exp-01-21"
+  }
+}
+
+client<llm> Fallback70 {
+  provider fallback
+  options {
+    strategy [Openrouter70, Groq70]
+  }
+}
+
+client<llm> Openrouter70 {
+  provider "openai-generic"
+  options {
+    base_url "https://openrouter.ai/api/v1"
+    api_key env.OPENROUTER_API_KEY
+    model "deepseek/deepseek-r1-distill-llama-70b"
+    headers {
+      "HTTP-Referer" "YOUR-SITE-URL" // Optional
+      "X-Title" "YOUR-TITLE" // Optional
+    }
+  }
+}
+
+client<llm> Openrouter32 {
   provider "openai-generic"
   options {
     base_url "https://openrouter.ai/api/v1"
@@ -13,20 +42,21 @@ client<llm> Openrouter {
   }
 }
 
-client<llm> Groq {
+client<llm> Huggingface {
+  provider openai-generic
+  options {
+    base_url "https://api-inference.huggingface.co/v1"
+    api_key env.HUGGINGFACE_API_KEY
+    model "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
+  }
+}
+
+client<llm> Groq70 {
   provider openai-generic
   options {
     base_url "https://api.groq.com/openai/v1"
     api_key env.GROQ_API_KEY
     model "deepseek-r1-distill-llama-70b"
-  }
-}
-
-client<llm> CustomGPT4o {
-  provider openai
-  options {
-    model "gpt-4o"
-    api_key env.OPENAI_API_KEY
   }
 }
 
@@ -47,7 +77,6 @@ client<llm> CustomSonnet {
   }
 }
 
-
 client<llm> CustomHaiku {
   provider anthropic
   retry_policy Constant
@@ -63,15 +92,6 @@ client<llm> CustomFast {
   options {
     // This will alternate between the two clients
     strategy [CustomGPT4oMini, CustomHaiku]
-  }
-}
-
-// https://docs.boundaryml.com/docs/snippets/clients/fallback
-client<llm> OpenaiFallback {
-  provider fallback
-  options {
-    // This will try the clients in order until one succeeds
-    strategy [CustomGPT4oMini, CustomGPT4oMini]
   }
 }
 

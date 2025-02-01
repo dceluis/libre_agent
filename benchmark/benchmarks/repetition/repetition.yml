@@ -13,7 +13,7 @@ memories:
 
 evaluations:
   - references: >
-      Recent memories contain ONE system response to the user salute.
+      The Recent memories section contains the user salute and only ONE system response to the salute.
       REASON: No need to repeat the salute.
     type: inspect
     skip_recall: true

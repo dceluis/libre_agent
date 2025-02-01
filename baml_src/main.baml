@@ -52,7 +52,7 @@ enum TemporalScope {
 }
 
 function UseTools(content: string) -> (ChatTool | MemoryUpdateTool | MemoryCreateTool | MemoryDeleteTool)[] {
-  client Groq
+  client Gemini
   prompt #"
     {{ content }}
 

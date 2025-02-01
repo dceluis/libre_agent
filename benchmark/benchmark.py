@@ -6,6 +6,7 @@ import os
 import time
 import argparse
 import concurrent.futures
+import copy
 from datetime import datetime
 from tabulate import tabulate
 from time import perf_counter
@@ -120,84 +121,91 @@ def populate_memory_graph(memories_data: list, working_memory):
                 "timestamp": timestamp
             })
 
-
     return memory_ids
 
-def run_scenario(run_id: str, scenario_data: dict, num_attempts: int, ape_config: dict = {}):
+def run_scenario_attempt(run_id: str, scenario_data: dict, eval_idx: int, attempt: int, ape_config: dict = {}):
     runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
     run_dir = os.path.join(runs_dir, run_id)
-
-    evals = scenario_data.get("evaluations", [])
-    memories_data = scenario_data.get("memories", [])
-    scenario_title = scenario_data.get("title")
     scenario_file_name = scenario_data.get("file_name")
+    eval_data = scenario_data.get("evaluations", [])[eval_idx]
+    memories_data = scenario_data.get("memories", [])
+    question = eval_data.get("question")
 
-    scenario_results = []
-    for eval_idx, eval in enumerate(evals):
-        references = eval.get("references", [])
-        question = eval.get("question")
+    memories_for_attempt = copy.deepcopy(memories_data)
+    references = eval_data.get("references", [])
+    if isinstance(references, str):
+        references = [references]
 
-        if isinstance(references, str):
-            references = [references]
+    temp_graph_filename = f'memory_graph_{scenario_file_name}_{eval_idx+1}_({attempt}).pkl'
+    temp_graph_path = os.path.join(run_dir, temp_graph_filename)
 
-        ctx = copy_context()
+    MemoryGraph.set_graph_file(temp_graph_path)
 
-        def _run(attempt):
-            attempt_dir = os.path.join(run_dir, f"{attempt}")
+    # cleanup the temporary graph file
+    if os.path.exists(temp_graph_path):
+        os.remove(temp_graph_path)
 
-            temp_graph_filename = f'memory_graph_{scenario_file_name}_{eval_idx + 1}.pkl'
-            temp_graph_path = os.path.join(attempt_dir, temp_graph_filename)
+    engine = LibreAgentEngine(sync=True, reasoning_model=config['reasoning_model'])
+    wm = engine.working_memory
 
-            MemoryGraph.set_graph_file(temp_graph_path)
+    if question:
+        memories_for_attempt.append({ "role": "user", "content": question, "working_memory": True, })
 
-            # cleanup the temporary graph file
-            if os.path.exists(temp_graph_path):
-                os.remove(temp_graph_path)
+    populate_memory_graph(memories_for_attempt, wm)
 
-            engine = LibreAgentEngine(sync=True, reasoning_model=config['reasoning_model'])
-            wm = engine.working_memory
+    skip_recall = eval_data.get("skip_recall", False)
 
-            if question:
-                memories_data.append({ "role": "user", "content": question, "working_memory": True, })
+    engine.execute('quick', skip_recall=skip_recall, ape_config=ape_config)
 
-            # Populate the memory graph for each YAML file
-            populate_memory_graph(memories_data, wm)
+    eval_type = eval_data.get("type", "")
+    if eval_type == "qa":
+        scenario_output = qa_eval(wm)
+    elif eval_type == "inspect":
+        scenario_output = inspect_eval(wm)
+    else:
+        logger.warning(f"eval type '{eval_type}' unknown, running as Q&A eval")
+        scenario_output = qa_eval(wm)
 
-            skip_recall = eval.get("skip_recall", False)
+    evaluator = Evaluator(model=config['evaluator_model'])
+    evaluation = evaluator.evaluate_answer(scenario=scenario_output, references=references)
 
-            engine.execute('quick', skip_recall=skip_recall, ape_config=ape_config)
+    result = {
+        "scenario": scenario_file_name,
+        "attempt": scenario_output,
+        "attempt_number": attempt,
+        "eval_index": eval_idx + 1,  # human-friendly numbering
+        "scenario_output": scenario_output,
+        "status": evaluation['result'],
+        "details": evaluation['evaluation'],
+        "references": "\n".join(references)
+    }
+    return result
 
-            eval_type = eval.get("type", "")
-            if eval_type == "qa":
-                scenario = qa_eval(wm)
-            elif eval_type == "inspect":
-                scenario = inspect_eval(wm)
-            else:
-                logger.warning(f"eval type '{eval_type}' unknown, running as Q&A eval")
-                scenario = qa_eval(wm)
+def build_benchmark(benchmark_dir, include_pattern: str, run_id: str, num_attempts: int, ape_config: dict = {}):
+    """
+    Build a list of jobs (one per attempt for each evaluation of each scenario YAML file).
+    Each job is a tuple of arguments for run_scenario_attempt.
+    """
+    jobs = []
+    yaml_paths = [
+        os.path.join(benchmark_dir, f)
+        for f in os.listdir(benchmark_dir)
+        if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or any(fnmatch.fnmatch(f, p) for p in include_pattern.split(',')))
+    ]
 
-            evaluator = Evaluator(model=config['evaluator_model'])
-            evaluation = evaluator.evaluate_answer(scenario=scenario, references=references)
+    for yaml_path in yaml_paths:
+        with open(yaml_path, 'r', encoding='utf-8') as f:
+            scenario_data = yaml.safe_load(f)
 
-            # After getting evaluation result
-            status = "Pass" if evaluation.strip().lower().endswith("pass") else "Fail"
-            scenario_results.append({
-                "scenario": scenario_file_name,
-                "attempt": scenario,
-                "status": status,
-                "details": evaluation,
-                "references": "\n".join(references)
-            })
+        scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
+        scenario_data['file_name'] = scenario_file_name
 
-        for attempt in range(num_attempts):
-            att = attempt + 1
-            ctx.run(_run, att)
-            if att < num_attempts:
-                # Wait before retrying if there are more attempts
-                # time.sleep(2)
-                pass
-
-    return scenario_results
+        evals = scenario_data.get("evaluations", [])
+        # Create one job per evaluation per attempt
+        for eval_idx, evaluation in enumerate(evals):
+            for attempt in range(1, num_attempts + 1):
+                jobs.append((run_id, scenario_data, eval_idx, attempt, ape_config))
+    return jobs
 
 def present_summary(all_results, total_time: float, num_threads: int):
     results = []
@@ -231,7 +239,7 @@ def present_summary(all_results, total_time: float, num_threads: int):
     # Print formatted report
     results.append("=== BENCHMARK RESULTS ===")
 
-    # Runtime and sumnary table
+    # Runtime and summary table
     runtime_table = [
         ["Total duration", f"{total_time:.2f}s"],
         ["Parallel threads", num_threads],
@@ -274,9 +282,9 @@ def present_summary(all_results, total_time: float, num_threads: int):
         for i, res in enumerate([r for r in all_results if r['status'] == 'Fail']):
             failure_data = [
                 ("Scenario", res['scenario']),
-                ("Attempt", res['attempt']),
+                (f"Attempt#{res['attempt_number']}", res['attempt']),
                 ("References", res['references']),
-                ("Details", res['details'])
+                ("Details", res['details']),
             ]
 
             results.append(f"\n❌ Failure #{i+1}")
@@ -289,10 +297,10 @@ def present_summary(all_results, total_time: float, num_threads: int):
 
     return (all_stats, "\n".join(results))
 
-def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_attempts: int, ape_config: dict={}):
+def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_attempts: int, ape_config: dict = {}):
     name = os.path.basename(benchmark_dir)
 
-    run_id = f"{name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+    run_id = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
     current_dir = os.path.dirname(__file__)
 
@@ -304,32 +312,20 @@ def run_benchmark(benchmark_dir, include_pattern: str, num_threads: int, num_att
 
     logger.info(f"Starting run {run_id}. All artifacts will be stored in {run_dir}")
 
-    yaml_paths = [
-        os.path.join(benchmark_dir, f)
-        for f in os.listdir(benchmark_dir)
-        if (f.endswith('.yaml') or f.endswith('.yml')) and (include_pattern is None or any(fnmatch.fnmatch(f, p) for p in include_pattern.split(',')))
-    ]
+    jobs = build_benchmark(benchmark_dir, include_pattern, run_id, num_attempts, ape_config)
 
     all_results = []
 
     start_time = perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = []
-        for yaml_path in yaml_paths:
-            with open(yaml_path, 'r', encoding='utf-8') as f:
-                scenario_data = yaml.safe_load(f)
-
-            scenario_file_name = os.path.splitext(os.path.basename(yaml_path))[0]
-            scenario_data['file_name'] = scenario_file_name
-
-            futures.append(executor.submit(run_scenario, run_id, scenario_data, num_attempts, ape_config))
-
-        for future in concurrent.futures.as_completed(futures):
+        # Submit all jobs to the thread pool
+        future_to_job = {executor.submit(run_scenario_attempt, *job): job for job in jobs}
+        for future in concurrent.futures.as_completed(future_to_job):
             try:
-                scenario_results = future.result()
-                all_results.extend(scenario_results)
+                result = future.result()
+                all_results.append(result)
             except Exception as e:
-                logger.error(f"Scenario failed: {str(e)}\n{traceback.format_exc()}")
+                logger.error(f"Scenario attempt failed: {str(e)}\n{traceback.format_exc()}")
 
     end_time = perf_counter()
 
@@ -354,7 +350,7 @@ def main():
 
     if not os.path.exists(benchmarks_dir):
         benchmarks = []
-        logger.warning(" Benchmarks directory not found")
+        logger.warning("Benchmarks directory not found")
     else:
         benchmarks = [f for f in os.listdir(benchmarks_dir) if os.path.isdir(os.path.join(benchmarks_dir, f))]
         logger.info(f"Found folders in benchmarks directory: {benchmarks}")

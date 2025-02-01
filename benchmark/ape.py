@@ -11,7 +11,7 @@ from logger import logger
 import argparse
 
 class APE:
-    def __init__(self, model="gemini/gemini-2.0-flash-exp"):
+    def __init__(self, model="gemini/gemini-2.0-flash-thinking-exp-01-21"):
         self.model = model
         litellm.suppress_debug_info = True
 
@@ -80,6 +80,7 @@ class APE:
 4. Exploring different instruction formats"""
 
         user_prompt = f"""Original prompt: {prompt}
+This prompt ha
 
 Generate exactly {n} variations. Format as valid jsonl:
 

@@ -31,11 +31,8 @@ def load_tools():
             logger.error(f"Error loading tool module {module_name}: {e}")
 
 def get_world_state_section():
-    current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     stats = MemoryGraph().get_stats()
     world_state = f"""
-- **Current Time**: {current_time}
-- **Memory Statistics**:
   - Total Memories: {stats['total_memories']}{f" ({stats['total_memories'] - 100} over the limit of 100)" if stats['total_memories'] > 100 else ""}
   - Total Connections: {stats['total_connections']}
   - Memory Types: {', '.join(f'{k}: {v}' for k, v in stats['memory_type_distribution'].items())}
