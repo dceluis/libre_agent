@@ -1,0 +1,12 @@
+title: "Emotional Engagement Request"
+description: "User expresses distress and expects an empathetic response."
+memories:
+  - timestamp: "30 seconds ago"
+    role: user
+    content: "i just lost my job and i really need some advice."
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that conveys empathy and offers constructive advice, or asks follow-up questions to better understand the user's emotional state.
+    type: inspect
+    skip_recall: true

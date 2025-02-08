@@ -1,0 +1,12 @@
+title: "Delayed Update Complaint Engagement"
+description: "User complains about waiting too long for an update, expecting the system to provide an explanation."
+memories:
+  - timestamp: "35 seconds ago"
+    role: user
+    content: "i've been waiting for 30 minutes for an update on my order, any word?"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that acknowledges the delay.
+    type: inspect
+    skip_recall: true

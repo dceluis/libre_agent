@@ -1,0 +1,12 @@
+title: "Ambiguous Request Engagement"
+description: "User provides a vague statement that implies a need for further interaction."
+memories:
+  - timestamp: "20 seconds ago"
+    role: user
+    content: "i need help with something, but i don't know what exactly."
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that proactively asks clarifying questions, prompting the user to specify the nature of the help required.
+    type: inspect
+    skip_recall: true

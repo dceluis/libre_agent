@@ -1,0 +1,13 @@
+title: "Temperature Alert Engagement"
+description: "An internal sensor alert for temperature exceeding safe limits should trigger an immediate notification."
+memories:
+  - timestamp: "4 minutes ago"
+    role: "Monitoring"
+    internal: True
+    content: "Temperature exceeds safe threshold"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that informs the user of the critical temperature alert.
+    type: inspect
+    skip_recall: true

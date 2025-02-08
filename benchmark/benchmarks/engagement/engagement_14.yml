@@ -1,0 +1,13 @@
+title: "Low Battery Alert Engagement"
+description: "Internal monitoring indicates a low battery on a connected device, requiring an unprompted alert."
+memories:
+  - timestamp: "1 minute ago"
+    role: "Monitoring"
+    internal: True
+    content: "Connected device battery critically low"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system message that notifies the user of the low battery status.
+    type: inspect
+    skip_recall: true

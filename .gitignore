@@ -3,7 +3,7 @@
 
 # But not these files...
 !.gitignore
-!requirements.txt
+!pyproject.toml
 !README.md
 !about.md
 

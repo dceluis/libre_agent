@@ -1,0 +1,13 @@
+title: "Calendar Reminder Engagement"
+description: "Internal trigger for an upcoming scheduled event should prompt an unprompted reminder."
+memories:
+  - timestamp: "1 minute ago"
+    role: "Scheduler"
+    internal: True
+    content: "Scheduled meeting in 10 minutes"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that actively reminds the user about the upcoming meeting, ensuring the event is clearly communicated.
+    type: inspect
+    skip_recall: true

@@ -1,0 +1,13 @@
+title: "Medication Reminder Engagement"
+description: "An internal schedule triggers a reminder for the user to take their medication."
+memories:
+  - timestamp: "1 minute ago"
+    role: "Scheduler"
+    internal: True
+    content: "Medication due in one minute"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that reminds the user to take their medication promptly.
+    type: inspect
+    skip_recall: true

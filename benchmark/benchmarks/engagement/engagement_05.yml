@@ -1,0 +1,12 @@
+title: "Compound Command Engagement"
+description: "User gives a compound instruction, triggering the system to clarify or respond appropriately."
+memories:
+  - timestamp: "25 seconds ago"
+    role: user
+    content: "book a table for dinner and remind me to call mom later."
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that acknowledges the request, either positively or negatively.
+    type: inspect
+    skip_recall: true

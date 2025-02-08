@@ -1,0 +1,12 @@
+title: "Basic Greeting Engagement"
+description: "System should respond when greeted by the user."
+memories:
+  - timestamp: "10 seconds ago"
+    role: user
+    content: "Good morning"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that delivers a greeting, explicitly acknowledging the user's "good morning".
+    type: inspect
+    skip_recall: true

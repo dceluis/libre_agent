@@ -1,0 +1,12 @@
+title: "Meta Engagement Query"
+description: "User questions the assistant's silence, expecting a self-aware response."
+memories:
+  - timestamp: "40 seconds ago"
+    role: user
+    content: "why are you so quiet sometimes?"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that addresses the meta query by explaining its conversational style or reasoning for silence, inviting further discussion.
+    type: inspect
+    skip_recall: true

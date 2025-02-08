@@ -27,7 +27,7 @@ class RecallRecognizer:
             logger.debug(f"[RecallRecognizer] constructed_prompt: {constructed_prompt}")
 
             completion_response = completion(
-                model="gemini/gemini-1.5-flash-8b",
+                model="gemini/gemini-2.0-flash-lite-preview-02-05",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": constructed_prompt}

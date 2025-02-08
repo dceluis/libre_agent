@@ -1,3 +1,4 @@
+from logging import disable
 from litellm import completion
 import traceback
 import time
@@ -213,7 +214,14 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
             available_tools = ToolRegistry.get_tools(mode)
             tools = [t["schema"] for t in available_tools]
 
-            completion_response = completion(model=self.model_name, messages=messages, tools=tools, tool_choice="required")
+            completion_args = {
+                "model": self.model_name,
+                "messages": messages,
+                "tools": tools,
+                "tool_choice": "auto"
+            }
+
+            completion_response = completion(**completion_args)
 
             chat_message = ChatMessage.from_dict(
                 completion_response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
@@ -228,7 +236,7 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
             logging_messages = [
                 ("Request System prompt", system_prompt),
                 ("Request Instruction", instruction),
-                ("Request Tools", tools),
+                ("Request Tools", f"{tools}"),
                 ("Response Content", f"{chat_message.content}"),
                 ("Response Tool Calls", f"{chat_message.tool_calls}")
             ]
@@ -237,7 +245,8 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
                 tabulate(
                     logging_messages,
                     tablefmt="grid",
-                    maxcolwidths=[None, 100],  # Wrap long values at 80 characters
+                    maxcolwidths=[None, 100],  # Wrap long values at 100 characters
+                    disable_numparse=True
                 ),
                 extra={
                     'tokens': { 'input': input_tokens, 'output': output_tokens },

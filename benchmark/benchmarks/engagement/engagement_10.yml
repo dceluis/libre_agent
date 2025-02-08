@@ -1,0 +1,13 @@
+title: "System Anomaly Alert Engagement"
+description: "Internal system anomaly detected should trigger an unsolicited alert to the user."
+memories:
+  - timestamp: "2 minutes ago"
+    role: "Security"
+    internal: True
+    content: "Unusual activity detected in server logs"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system message that alerts the user to the anomaly in server logs.
+    type: inspect
+    skip_recall: true

@@ -1,0 +1,13 @@
+title: "Maintenance Reminder Engagement"
+description: "An internal trigger for scheduled maintenance should prompt an unprompted reminder to the user."
+memories:
+  - timestamp: "5 minutes ago"
+    role: "Scheduler"
+    internal: True
+    content: "Scheduled maintenance will begin in 15 minutes"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system message that reminds the user about the upcoming maintenance, ensuring that they are informed and prepared.
+    type: inspect
+    skip_recall: true

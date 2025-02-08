@@ -1,0 +1,13 @@
+title: "Backup Completion Engagement"
+description: "Completion of a system backup triggers an internal event that should prompt a notification to the user."
+memories:
+  - timestamp: "8 minutes ago"
+    role: "Backup"
+    internal: True
+    content: "System backup completed successfully"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that informs the user of the successful system backup, confirming that the backup process has completed without error.
+    type: inspect
+    skip_recall: true

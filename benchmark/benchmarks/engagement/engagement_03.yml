@@ -1,0 +1,12 @@
+title: "Multi-Query Engagement"
+description: "User asks two unrelated questions in one message, expecting a consolidated response."
+memories:
+  - timestamp: "15 seconds ago"
+    role: user
+    content: "can you check my email and tell me what time it is?"
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that seamlessly addresses the request either positively or negatively in a coherent manner.
+    type: inspect
+    skip_recall: true

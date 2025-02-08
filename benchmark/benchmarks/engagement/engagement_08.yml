@@ -1,0 +1,12 @@
+title: "Incomplete Emotional Expression Engagement"
+description: "User sends an incomplete emotional statement that implies a need for engagement."
+memories:
+  - timestamp: "50 seconds ago"
+    role: user
+    content: "i feel really off today..."
+    working_memory: True
+evaluations:
+  - references: >
+      a single system response that expresses concern about the user's mood.
+    type: inspect
+    skip_recall: true

@@ -79,6 +79,8 @@ def populate_memory_graph(memories_data: list, working_memory):
         role = msg.get("role", "user")
         content = msg.get("content", "")
         timestamp = msg.get("timestamp")
+        internal = msg.get("internal", None)
+
         if isinstance(timestamp, str):
             try:
                 dt = time_parser.parse(timestamp)
@@ -91,16 +93,29 @@ def populate_memory_graph(memories_data: list, working_memory):
         recall = msg.get("recalled", False)
         add_to_working_memory = msg.get("working_memory", False)
 
+        if role == "user":
+            unit_name = "User"
+            memory_type = 'external'
+        elif role == "assistant":
+            unit_name = "ReasoningUnit"
+            memory_type = 'external'
+        else:
+            unit_name = role
+            memory_type = 'internal'
+
         metadata = {
-            "unit_name": "User" if role == "user" else "ReasoningUnit",
+            "unit_name": unit_name,
             "role": "message",
             "recalled": None,
             "temporal_scope": "short_term"
         }
 
+        if internal is not None:
+            memory_type = 'internal' if internal else 'external'
+
         memory_id = memory_graph.add_memory(
             timestamp=timestamp,
-            memory_type="external",
+            memory_type=memory_type,
             content=content,
             metadata=metadata
         )
@@ -115,7 +130,7 @@ def populate_memory_graph(memories_data: list, working_memory):
                 "memory_id": memory_id,
                 "content": content,
                 "metadata": metadata,
-                "memory_type": "external",
+                "memory_type": memory_type,
                 "timestamp": timestamp
             })
 
