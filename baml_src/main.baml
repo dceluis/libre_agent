@@ -52,7 +52,7 @@ enum TemporalScope {
 }
 
 function UseTools(content: string) -> (ChatTool | MemoryUpdateTool | MemoryCreateTool | MemoryDeleteTool)[] {
-  client Gemini
+  client Gemini2Flash
   prompt #"
     {{ content }}
 

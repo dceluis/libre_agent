@@ -9,6 +9,14 @@ client<llm> Gemini {
   }
 }
 
+client<llm> Gemini2Flash {
+  provider google-ai
+  options {
+    api_key env.GEMINI_API_KEY
+    model "gemini-2.0-flash"
+  }
+}
+
 client<llm> Fallback70 {
   provider fallback
   options {

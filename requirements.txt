@@ -4,7 +4,7 @@ networkx==3.0
 colorama==0.4.6       # If using colorama
 pytest==7.2.0
 pytest-mock==3.10.0
-litellm==1.55.9
+litellm>=1.55.9
 python-json-logger==2.0.7
 baml-py==0.73.5
 
@@ -27,3 +27,9 @@ datasette-vega
 #benchmarking
 # tabulate
 git+https://github.com/astanin/python-tabulate.git@master
+
+# telemetry
+arize-phoenix
+opentelemetry-sdk
+opentelemetry-exporter-otlp
+opentelemetry-instrumentation

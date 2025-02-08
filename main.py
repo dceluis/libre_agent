@@ -3,12 +3,24 @@ import schedule
 import time
 import sys
 import argparse
-from memory_graph import MemoryGraph
-from reasoning_engine import LibreAgentEngine
+from libre_agent.memory_graph import MemoryGraph
+from libre_agent.reasoning_engine import LibreAgentEngine
 
 # import litellm
 # disable litellm logging
 # litellm.suppress_debug_info = True
+
+
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from libre_agent.instrumentation.instrumentor import LibreAgentInstrumentor
+
+endpoint = "http://0.0.0.0:6006/v1/traces"
+trace_provider = TracerProvider()
+trace_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+
+LibreAgentInstrumentor().instrument(tracer_provider=trace_provider, skip_dep_check=True)
 
 import colorama
 from colorama import Fore, Style
@@ -19,7 +31,7 @@ ITALIC_RESET = '\x1b[23m'
 from prompt_toolkit import PromptSession
 from prompt_toolkit.application import get_app_or_none, run_in_terminal
 
-from logger import logger
+from libre_agent.logger import logger
 import asyncio
 
 schedule_counter = 0

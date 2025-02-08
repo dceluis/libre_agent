@@ -4,9 +4,7 @@ from unittest import result
 from litellm import completion
 import json
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from logger import logger
+from libre_agent.logger import logger
 
 class Evaluator:
 

@@ -18,13 +18,16 @@
 !recall_recognizer.py
 !memory_graph.py
 !working_memory.py
-!reasoning_engine.py
 
-!units/
-!units/*.py
+!libre_agent/
+!libre_agent/**/
+!libre_agent/**/*.py
 
-!tools/
-!tools/*.py
+!libre_agent/units/
+!libre_agent/units/*.py
+
+!libre_agent/tools/
+!libre_agent/tools/*.py
 
 !doc/architecture/*.md
 

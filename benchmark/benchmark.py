@@ -20,12 +20,10 @@ litellm.suppress_debug_info = True
 from evaluator import Evaluator
 from natural_time_parser import NaturalTimeParser
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from memory_graph import memory_graph, MemoryGraph
-from logger import logger
-from reasoning_engine import LibreAgentEngine
-from utils import format_memories
+from libre_agent.memory_graph import memory_graph, MemoryGraph
+from libre_agent.logger import logger
+from libre_agent.reasoning_engine import LibreAgentEngine
+from libre_agent.utils import format_memories
 
 config = {
     'reasoning_model': 'gemini/gemini-2.0-flash-exp',

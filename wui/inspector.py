@@ -11,8 +11,8 @@ from contextlib import asynccontextmanager
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from memory_graph import MemoryGraph
-from logger import logger
+from libre_agent.memory_graph import MemoryGraph
+from libre_agent.logger import logger
 
 # Configuration
 graph_file = None

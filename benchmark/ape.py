@@ -1,13 +1,12 @@
 import json
 from typing import List
-from unittest import result
 from litellm import completion
 import litellm
 from tabulate import tabulate
 
-from benchmark import run_benchmark
+from benchmark.benchmark import run_benchmark
 
-from logger import logger
+from libre_agent.logger import logger
 import argparse
 
 class APE:

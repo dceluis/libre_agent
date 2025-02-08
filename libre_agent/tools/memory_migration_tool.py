@@ -1,5 +1,5 @@
-from tool_registry import ToolRegistry
-from logger import logger
+from libre_agent.tool_registry import ToolRegistry
+from libre_agent.logger import logger
 import time
 from pathlib import Path
 

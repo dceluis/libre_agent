@@ -1,7 +1,7 @@
 import uuid
 import time
 import asyncio
-from logger import logger
+from libre_agent.logger import logger
 from collections import deque
 
 class WorkingMemory:

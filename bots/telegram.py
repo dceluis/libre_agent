@@ -1,6 +1,5 @@
 import asyncio
 import os
-import sys
 import argparse
 from typing import Dict
 
@@ -8,10 +7,19 @@ from aiogram import Bot, Dispatcher, Router, F
 from aiogram.enums import ParseMode
 from aiogram.types import Message
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from libre_agent.logger import logger
+from libre_agent.reasoning_engine import LibreAgentEngine
 
-from reasoning_engine import LibreAgentEngine
-from logger import logger
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from libre_agent.instrumentation.instrumentor import LibreAgentInstrumentor
+
+endpoint = "http://0.0.0.0:6006/v1/traces"
+trace_provider = TracerProvider()
+trace_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+
+LibreAgentInstrumentor().instrument(tracer_provider=trace_provider, skip_dep_check=True)
 
 # Initialize router
 router = Router()

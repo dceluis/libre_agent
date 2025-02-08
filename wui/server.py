@@ -14,8 +14,8 @@ from contextlib import asynccontextmanager
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from reasoning_engine import LibreAgentEngine
-from memory_graph import MemoryGraph
+from libre_agent.reasoning_engine import LibreAgentEngine
+from libre_agent.memory_graph import MemoryGraph
 
 # Configuration defaults
 deep_schedule = 10

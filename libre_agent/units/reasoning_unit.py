@@ -2,12 +2,12 @@ from litellm import completion
 import traceback
 import time
 import os
-
-from logger import logger
-from memory_graph import MemoryGraph
 from tabulate import tabulate
-from tool_registry import ToolRegistry
-from utils import get_world_state_section, format_memories
+
+from libre_agent.logger import logger
+from libre_agent.memory_graph import MemoryGraph
+from libre_agent.tool_registry import ToolRegistry
+from libre_agent.utils import get_world_state_section, format_memories
 import asyncio
 
 from baml_client.async_client import b

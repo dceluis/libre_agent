@@ -1,8 +1,8 @@
 from litellm import completion
 import re
-from memory_graph import MemoryGraph
-from logger import logger
-from utils import format_memories
+from .memory_graph import MemoryGraph
+from .logger import logger
+from .utils import format_memories
 import traceback
 
 class RecallRecognizer:

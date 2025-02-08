@@ -1,19 +1,18 @@
-# utils.py
-
 import importlib
 import time
 from pathlib import Path
-from logger import logger
-from memory_graph import MemoryGraph
 import re
-from tool_registry import ToolRegistry
+
+from libre_agent.logger import logger
+from libre_agent.memory_graph import MemoryGraph
+from libre_agent.tool_registry import ToolRegistry
 
 def load_units():
     units_dir = Path(__file__).parent / 'units'
     for file in units_dir.glob('*.py'):
         if file.name.startswith('__') or file.name == 'base_unit.py':
             continue  # Skip __init__.py and base_unit.py
-        module_name = f'units.{file.stem}'
+        module_name = f'libre_agent.units.{file.stem}'
         try:
             importlib.import_module(module_name)
         except Exception as e:
@@ -24,7 +23,7 @@ def load_tools():
     for file in tools_dir.glob('*.py'):
         if file.name.startswith('__'):
             continue  # Skip __init__.py
-        module_name = f'tools.{file.stem}'
+        module_name = f'libre_agent.tools.{file.stem}'
         try:
             importlib.import_module(module_name)
         except Exception as e:
@@ -84,6 +83,9 @@ def maybe_invoke_tool_new(working_memory, mode='quick', response=None):
 
         tool = next((t for t in available_tools if t['name'] == tool_name), None)
 
+        logger.warning(f"tools: {available_tools}")
+        logger.warning(f"mode: {mode}")
+        logger.warning(f"tool_name: {tool_name}")
         if tool:
             try:
                 params_dict = response_tool.model_dump()

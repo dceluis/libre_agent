@@ -1,6 +1,6 @@
-from logger import logger
-from tool_registry import ToolRegistry
-from memory_graph import memory_graph
+from libre_agent.logger import logger
+from libre_agent.tool_registry import ToolRegistry
+from libre_agent.memory_graph import memory_graph
 from traceback import format_exc
 
 class ChatTool:

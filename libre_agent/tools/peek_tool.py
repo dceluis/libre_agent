@@ -4,8 +4,8 @@ import base64
 import subprocess
 import time
 import traceback
-from logger import logger
-from utils import get_world_state_section  # Import the utility function
+from libre_agent.logger import logger
+from libre_agent.utils import get_world_state_section  # Import the utility function
 
 class PeekTool:
     name = "PeekTool"

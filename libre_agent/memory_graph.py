@@ -8,7 +8,7 @@ import secrets
 # Context variable to store graph instances
 memory_graph_file_ctx = contextvars.ContextVar('memory_graph_file')
 
-from logger import logger
+from libre_agent.logger import logger
 
 class MemoryGraph:
     def __init__(self):

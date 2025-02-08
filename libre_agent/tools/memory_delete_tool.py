@@ -1,6 +1,6 @@
-from tool_registry import ToolRegistry
-from logger import logger
-from memory_graph import memory_graph
+from libre_agent.tool_registry import ToolRegistry
+from libre_agent.logger import logger
+from libre_agent.memory_graph import memory_graph
 
 class MemoryDeleteTool:
     name = "MemoryDeleteTool"
