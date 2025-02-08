@@ -7,7 +7,8 @@ class ToolRegistry:
     def register_tool(cls, tool_class):
         cls.tools.append({
             'name': tool_class.__name__,
-            'class': tool_class
+            'class': tool_class,
+            'schema': tool_class.to_json_schema()
         })
 
     @classmethod

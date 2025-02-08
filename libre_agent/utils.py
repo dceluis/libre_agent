@@ -6,6 +6,7 @@ import re
 from libre_agent.logger import logger
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.tool_registry import ToolRegistry
+from libre_agent.dataclasses import ChatMessageToolCall
 
 def load_units():
     units_dir = Path(__file__).parent / 'units'
@@ -72,6 +73,39 @@ def format_memories(memories, format: str = 'default'):
 
     return formatted.strip()
 
+def maybe_invoke_tool_new_new(working_memory, mode: str = 'quick', response: list[ChatMessageToolCall] | None = None):
+    if not response:
+        return
+
+    for tool_call in response:
+        available_tools = ToolRegistry.get_tools(mode=mode)
+
+        tool_name = tool_call.function.name
+
+        tool = next((t for t in available_tools if t['name'] == tool_name), None)
+
+        if tool:
+            try:
+                params_dict = tool_call.function.arguments
+
+                logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
+
+                tool_instance = tool['class'](working_memory, mode=mode)
+
+                if params_dict:
+                    result = tool_instance.run(**params_dict)
+                else:
+                    result = tool_instance.run()
+
+                result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}"
+                logger.info(result_msg)
+            except Exception as e:
+                result_msg = f"Failed to run tool '{tool_name}': {e}"
+                logger.error(result_msg)
+        else:
+            result_msg = f"Tool '{tool_name}' not available."
+            logger.warning(result_msg)
+
 def maybe_invoke_tool_new(working_memory, mode='quick', response=None):
     if not response:
         return
@@ -83,9 +117,6 @@ def maybe_invoke_tool_new(working_memory, mode='quick', response=None):
 
         tool = next((t for t in available_tools if t['name'] == tool_name), None)
 
-        logger.warning(f"tools: {available_tools}")
-        logger.warning(f"mode: {mode}")
-        logger.warning(f"tool_name: {tool_name}")
         if tool:
             try:
                 params_dict = response_tool.model_dump()

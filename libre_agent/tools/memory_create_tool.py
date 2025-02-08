@@ -1,58 +1,42 @@
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.logger import logger
 from libre_agent.memory_graph import memory_graph
+from libre_agent.tools.base_tool import BaseTool
 
-class MemoryCreateTool:
+class MemoryCreateTool(BaseTool):
     name = "MemoryCreateTool"
-#     description = """
-# <tool>
-#     <name>Memory Create Tool</name>
-#     <description>
-# Use this tool to add a memory to the system.
-#
-#     <guidelines>
-# - If in doubt, store ephemeral updates as 'reflection' and more permanent data as long_term with the relevant scope.
-# - 'reflection' memories will be automatically added to the current working memory.
-#     </guidelines>
-#     </description>
-#     <parameters>
-#         <parameter>
-#             <name>unit_name</name>
-#             <description>the name of the unit that is using the tool.</description>
-#         </parameter>
-#         <parameter>
-#             <name>content</name>
-#             <description>the contents of the memory.</description>
-#             <required>True</required>
-#         </parameter>
-#         <parameter>
-#             <name>priority_level</name>
-#             <description>enum: CORE, HIGH, MEDIUM, LOW, BACKGROUND</description>
-#             <required>True</required>
-#         </parameter>
-#         <parameter>
-#             <name>temporal_scope</name>
-#             <description>either 'short_term' or 'long_term'</description>
-#             <required>True</required>
-#         </parameter>
-#         <parameter>
-#             <name>role</name>
-#             <description>'reflection' (ephemeral), 'episodic', 'semantic', 'procedural'</description>
-#             <guidelines>
-#   - 'reflection' (typically short_term, ephemeral self-observations)
-#   - 'episodic' (long_term, personal experiences/events)
-#   - 'semantic' (long_term, general facts/knowledge)
-#   - 'procedural' (long_term, skills/instructions)
-#             </guidelines>
-#             <required>True</required>
-#         </parameter>
-#     </parameters>
-# </tool>
-# """
+    description = """This tool add a persistent memory to the system."""
 
-    def __init__(self, working_memory, mode='quick', **kwargs):
-        self.working_memory = working_memory
-        self.mode = mode
+    parameters = {
+        "unit_name": {
+            "type": "string",
+            "description": "The name of the unit that is using the tool.",
+            "nullable": True
+        },
+        "content": {
+            "type": "string",
+            "description": "The contents of the memory.",
+            "nullable": False
+        },
+        "priority_level": {
+            "type": "string",
+            "enum": ["CORE", "HIGH", "MEDIUM", "LOW", "BACKGROUND"],
+            "description": "The memory's recall priority",
+            "nullable": False
+        },
+        "temporal_scope":{
+            "type": "string",
+            "enum": ["SHORT_TERM", "LONG_TERM"],
+            "description": "How long to store the memory",
+            "nullable": False
+        },
+        "role": {
+            "type": "string",
+            "enum": ["reflection", "episodic", "semantic", "procedural"],
+            "description": "The type of memory",
+            "nullable": False
+        }
+    }
 
     def validate_role(self, role):
         valid_roles = ['reflection', 'episodic', 'semantic', 'procedural']

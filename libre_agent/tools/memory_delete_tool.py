@@ -1,30 +1,23 @@
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.logger import logger
 from libre_agent.memory_graph import memory_graph
+from libre_agent.tools.base_tool import BaseTool
 
-class MemoryDeleteTool:
+class MemoryDeleteTool(BaseTool):
     name = "MemoryDeleteTool"
+    description = """This tool permanently purges a memory from the system.
 
-#     description = """
-# <tool>
-#     <name>Memory Delete Tool</name>
-#     <description>Use this tool to permanently purge a memory from the system.</description>
-#     <guidelines>
-# Memories in the working memory CANNOT be deleted. They will automatically clear once they're no longer needed.
-# You can only delete memories that are marked as 'recalled' from the Recalled Memories section.
-#     </guidelines>
-#     <parameters>
-#         <parameter>
-#             <name>memory_id</name>
-#             <description>ID of memory to purge</description>
-#         </parameter>
-#     </parameters>
-# </tool>
-# """
+Guidelines:
+Memories in the working memory CANNOT be deleted. They will automatically clear once they're no longer needed.
+You can only delete memories that are marked as 'recalled' from the Recalled Memories section."""
 
-    def __init__(self, working_memory, mode='quick', **kwargs):
-        self.working_memory = working_memory
-        self.mode = mode
+    parameters = {
+        "memory_id": {
+            "type": "string",
+            "description": "ID of memory to purge",
+            "nullable": False
+        }
+    }
 
     def run(self, memory_id: str, **kwargs):
         recalled_memories = self.working_memory.get_memories(metadata={'recalled': True})

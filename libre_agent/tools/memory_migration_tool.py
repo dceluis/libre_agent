@@ -1,66 +1,59 @@
-from libre_agent.tool_registry import ToolRegistry
-from libre_agent.logger import logger
 import time
 from pathlib import Path
 
-class MemoryMigrationTool:
-    name = "MemoryMigrationTool"
+from libre_agent.tools.base_tool import BaseTool
+from libre_agent.tool_registry import ToolRegistry
+from libre_agent.logger import logger
 
-#     description = """
-# <tool>
-#     <name>Memory Migration Tool</name>
-#     <description>Use this tool to generate and save a distilled summary of all system memories for migration purposes.</description>
-#
-#     <guidelines>
-# This summary should preserve essential knowledge while removing transient information.
-# The summary MUST be structured as follows:
-#
-# 1. Core Objectives:
-#    - List active goals and purposes
-#    - Preserve high-priority directives
-#
-# 2. Key Learnings:
-#    - Consolidated insights from operations
-#    - Validated solutions to recurring problems
-#    - Critical user preferences/patterns
-#
-# 3. Essential Memories:
-#    - Episodic knowledge required for continuity
-#    - Semantic knowledge critical to operations
-#    - Updated procedural knowledge
-#
-# 4. System State:
-#    - Current personality configuration
-#    - Active tool configurations
-#    - Memory retention policies
-#
-# Omit:
-# - Transient conversation history
-# - Temporary working memories
-# - Deprecated procedures
-# - Duplicate information
-#     </guidelines>
-#     <parameters>
-#         <parameter>
-#             <name>content</name>
-#             <description>The structured summary content generated</description>
-#             <type>string</type>
-#             <required>True</required>
-#         </parameter>
-#         <parameter>
-#             <name>filename</name>
-#             <description>Base filename for the summary (will append timestamp)</description>
-#             <type>string</type>
-#             <required>False</required>
-#             <default>migration_summary</default>
-#         </parameter>
-#     </parameters>
-# </tool>
-# """
+class MemoryMigrationTool(BaseTool):
+    name = "MemoryMigrationTool"
+    description = """Use this tool to generate and save a distilled summary of all system memories for migration purposes.
+
+Guidelines:
+This summary should preserve essential knowledge while removing transient information.
+The summary MUST be structured as follows:
+
+1. Core Objectives:
+   - List active goals and purposes
+   - Preserve high-priority directives
+
+2. Key Learnings:
+   - Consolidated insights from operations
+   - Validated solutions to recurring problems
+   - Critical user preferences/patterns
+
+3. Essential Memories:
+   - Episodic knowledge required for continuity
+   - Semantic knowledge critical to operations
+   - Updated procedural knowledge
+
+4. System State:
+   - Current personality configuration
+   - Active tool configurations
+   - Memory retention policies
+
+Omit:
+- Transient conversation history
+- Temporary working memories
+- Deprecated procedures
+- Duplicate information"""
+
+    parameters = {
+        "content": {
+            "type": "string",
+            "description": "The structured summary content generated",
+            "nullable": False
+        },
+        "filename": {
+            "type": "string",
+            "description": "Base filename for the summary (will append timestamp)",
+            "nullable": True
+        }
+    }
+
 
     def __init__(self, working_memory, **kwargs):
-        self.working_memory = working_memory
-        self.mode = 'migration'
+        super().__init__(working_memory, mode='migration', **kwargs)
         self.summary_dir = Path("migration_summaries")
         self.summary_dir.mkdir(parents=True, exist_ok=True)
 

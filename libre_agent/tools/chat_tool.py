@@ -1,37 +1,25 @@
 from libre_agent.logger import logger
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.memory_graph import memory_graph
+from libre_agent.tools.base_tool import BaseTool
 from traceback import format_exc
 
-class ChatTool:
+class ChatTool(BaseTool):
     name = 'ChatTool'
-
-#     description = """
-# <tool>
-#     <name>Chat Tool</name>
-#     <description>This tool adds a message to the chat.</description>
-#     <parameters>
-#         <parameter>
-#             <name>content</name>
-#             <description>The content of the message.</description>
-#             <type>string</type>
-#             <required>True</required>
-#         </parameter>
-#         <parameter>
-#             <name>parse_mode</name>
-#             <description>Markdown parsing mode: 'markdown' or 'plaintext' (default). Only use markdown if you can ensure proper formatting.</description>
-#             <type>string</type>
-#             <required>False</required>
-#             <default>plaintext</default>
-#             <options>markdown,plaintext</options>
-#         </parameter>
-#     </parameters>
-# </tool>
-# """
-
-    def __init__(self, working_memory, mode='quick', **kwargs):
-        self.working_memory = working_memory
-        self.mode = mode
+    description = "This tool adds a message to the chat."
+    parameters = {
+        "content": {
+            "type": "string",
+            "description": "The content of the message.",
+            "nullable": False
+        },
+        "parse_mode": {
+            "type": "string",
+            "enum": ["MARKDOWN", "PLAINTEXT"],
+            "description": "Message parsing mode. Only use markdown if you can ensure proper formatting. Otherwise use plaintext",
+            "nullable": True
+        }
+    }
 
     def validate_parse_mode(self, parse_mode):
         valid_parse_modes = ['plaintext', 'markdown']

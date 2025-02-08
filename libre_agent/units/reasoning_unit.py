@@ -8,14 +8,12 @@ from libre_agent.logger import logger
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.utils import get_world_state_section, format_memories
-import asyncio
-
-from baml_client.async_client import b
+from libre_agent.dataclasses import ChatMessage
 
 class ReasoningUnit():
     unit_name = "ReasoningUnit"
 
-    def __init__(self, model_name='gemini/gemini-2.0-flash-thinking-exp-01-21'):
+    def __init__(self, model_name='gemini/gemini-2.0-flash'):
         super().__init__()
         self.model_name = model_name
         self.personality_traits = self.load_personality_traits()
@@ -151,22 +149,18 @@ Contains messages and statuses from the current conversation session including:
             'quick': {
                 'step_name': 'quick_reflection',
                 'instruction_note': "quick mode - focus on immediate actions",
-                'allowed_tools': self.allowed_tools(mode)
             },
             'deep': {
                 'step_name': 'deep_reflection',
                 'instruction_note': "deep mode - comprehensive analysis",
-                'allowed_tools': self.allowed_tools(mode)
             },
             'migration': {
                 'step_name': 'migration_reflection',
                 'instruction_note': "migration mode - export system summary",
-                'allowed_tools': self.allowed_tools(mode)
             },
         }.get(mode, {
             'step_name': 'quick_reflection',
             'instruction_note': "quick mode - focus on immediate actions",
-            'allowed_tools': self.allowed_tools('quick')
         })
 
         current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
@@ -210,31 +204,33 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
 
             logger.info("Submitting reasoning for processing...")
 
-            response = asyncio.run(b.UseTools(content=f"{system_prompt}\n{instruction}"))
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": instruction}
+            ]
 
-            # messages = [
-            #     {"role": "system", "content": system_prompt},
-            #     {"role": "user", "content": instruction}
-            # ]
+            # Add tools parameter with tools description
+            available_tools = ToolRegistry.get_tools(mode)
+            tools = [t["schema"] for t in available_tools]
 
-            # completion_response = completion(model=self.model_name, messages=messages)
+            completion_response = completion(model=self.model_name, messages=messages, tools=tools, tool_choice="required")
 
-            # logger.debug(f"Completion response: {completion_response}", extra={'unit': 'reasoning_unit', 'step': config['step_name']})
-
-            # reflection_text = completion_response['choices'][0]['message']['content'].strip()
+            chat_message = ChatMessage.from_dict(
+                completion_response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
+            )
 
             # Get input tokens
-            # input_tokens = completion_response['usage']['prompt_tokens']
+            input_tokens = completion_response['usage']['prompt_tokens']
 
             # Get output tokens
-            # output_tokens = completion_response['usage']['completion_tokens']
-
-            # logging_messages.append(("Reflection Result", reflection_text))
+            output_tokens = completion_response['usage']['completion_tokens']
 
             logging_messages = [
-                ("System prompt", system_prompt),
-                ("Reflection Instruction", instruction),
-                ("Reflection Result", f"{response}")
+                ("Request System prompt", system_prompt),
+                ("Request Instruction", instruction),
+                ("Request Tools", tools),
+                ("Response Content", f"{chat_message.content}"),
+                ("Response Tool Calls", f"{chat_message.tool_calls}")
             ]
 
             logger.info(
@@ -244,14 +240,14 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
                     maxcolwidths=[None, 100],  # Wrap long values at 80 characters
                 ),
                 extra={
-                    # 'tokens': { 'input': input_tokens, 'output': output_tokens },
+                    'tokens': { 'input': input_tokens, 'output': output_tokens },
                     'model': self.model_name,
                     'step': config['step_name'],
                     'unit': 'reasoning_unit'
                 }
             )
 
-            return response
+            return chat_message
 
         except Exception as e:
             logger.error(f"Error in reflection: {e}\n{traceback.format_exc()}")
@@ -259,13 +255,16 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
 
     def describe_tools(self, mode='quick'):
         available_tools = ToolRegistry.get_tools(mode)
-        tool_descriptions = "<tools>\n"
-        tool_descriptions += "\n".join([
-            tool['description'] for tool in available_tools
-        ])
-        tool_descriptions += "\n</tools>"
+        tool_descriptions = ""
+        for tool in available_tools:
+            tool_descriptions += f"Tool Name: {tool['name']}\n"
+            tool_descriptions += f"Description: {tool['class'].description}\n"
+            tool_descriptions += "Parameters:\n"
+            for param_name, param_details in tool['class'].parameters.items():
+                tool_descriptions += f"  - {param_name}: \n"
+                tool_descriptions += f"    - Type: {param_details['type']}\n"
+                tool_descriptions += f"    - Description: {param_details['description']}\n"
+                tool_descriptions += f"    - Nullable: {param_details['nullable']}\n"
+            tool_descriptions += "\n"
+
         return tool_descriptions
-
-    def allowed_tools(self, mode):
-        return ", ".join([tool['name'] for tool in ToolRegistry.get_tools(mode)])
-

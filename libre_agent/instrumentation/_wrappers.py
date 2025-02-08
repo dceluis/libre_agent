@@ -11,11 +11,14 @@ from openinference.semconv.trace import SpanAttributes
 # span attributes
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 
 # define a custom span kind for execution instrumentation
 EXECUTE = "EXECUTE"
-
+REASON = "REASON"
+TOOL_RUN = "TOOL.RUN"
 
 def _strip_method_args(arguments: Mapping[str, Any]) -> dict:
     return {key: value for key, value in arguments.items() if key not in ("self", "cls")}
@@ -28,7 +31,6 @@ def _get_input_value(method: Callable[..., Any], *args: Any, **kwargs: Any) -> s
     arguments = bound_args.arguments
     arguments = _strip_method_args(arguments)
     return safe_json_dumps(arguments)
-
 
 class _ExecuteWrapper:
     def __init__(self, tracer: trace_api.Tracer) -> None:
@@ -65,5 +67,80 @@ class _ExecuteWrapper:
                 span.record_exception(e)
                 span.set_status(trace_api.StatusCode.ERROR)
                 raise
-            span.set_attribute("execute_output", str(result))
+            span.set_attribute(OUTPUT_VALUE, str(result))
         return result
+
+class _ReasonWrapper:
+    def __init__(self, tracer: trace_api.Tracer) -> None:
+        self._tracer = tracer
+
+    def __call__(
+            self,
+            wrapped: Callable[..., Any],
+            instance: Any,
+            args: Tuple[Any, ...],
+            kwargs: Mapping[str, Any],
+    ) -> Any:
+        if context_api.get_value(context_api._SUPPRESS_INSTRUMENTATION_KEY):
+            return wrapped(*args, **kwargs)
+        span_name = f"{instance.__class__.__name__}.reason"
+        attributes: Dict[str, AttributeValue] = {
+            OPENINFERENCE_SPAN_KIND: REASON,
+            INPUT_VALUE: _get_input_value(wrapped, *args, **kwargs)
+        }
+        attributes.update(dict(get_attributes_from_context()))
+
+        with self._tracer.start_as_current_span(span_name, attributes=attributes) as span:
+            try:
+                result = wrapped(*args, **kwargs)
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(trace_api.StatusCode.ERROR)
+                raise
+            span.set_attribute(OUTPUT_VALUE, str(result))
+
+            return result
+
+
+class _ToolWrapper:
+    def __init__(self, tracer: trace_api.Tracer) -> None:
+        self._tracer = tracer
+
+    def __call__(
+        self,
+        wrapped: Callable[..., Any],
+        instance: Any,
+        args: Tuple[Any, ...],
+        kwargs: Mapping[str, Any],
+    ) -> Any:
+        if context_api.get_value(context_api._SUPPRESS_INSTRUMENTATION_KEY):
+            return wrapped(*args, **kwargs)
+
+        span_name = f"{instance.__class__.__name__}.run"
+        attributes: Dict[str, AttributeValue] = {
+            OPENINFERENCE_SPAN_KIND: TOOL_RUN,
+            "tool.name": getattr(instance, 'name', instance.__class__.__name__),
+            INPUT_VALUE: _get_input_value(wrapped, *args, **kwargs),
+            INPUT_MIME_TYPE: "application/json",
+            "tool.mode": instance.mode,
+        }
+
+        if hasattr(instance, 'description'):
+            attributes["tool.description"] = instance.description
+
+        attributes.update(dict(get_attributes_from_context()))
+
+        with self._tracer.start_as_current_span(span_name, attributes=attributes) as span:
+            output_value = ""
+            try:
+                result = wrapped(*args, **kwargs)
+                output_value = safe_json_dumps(result)
+            except Exception as e:
+                output_value = safe_json_dumps({"error": str(e)})
+                span.record_exception(e)
+                span.set_status(trace_api.StatusCode.ERROR)
+                raise
+            finally:
+                span.set_attribute(OUTPUT_VALUE, output_value)
+                span.set_attribute(OUTPUT_MIME_TYPE, "application/json")
+            return result

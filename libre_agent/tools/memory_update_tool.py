@@ -1,48 +1,41 @@
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.logger import logger
 from libre_agent.memory_graph import MemoryGraph
+from libre_agent.tools.base_tool import BaseTool
 
-class MemoryUpdateTool:
+class MemoryUpdateTool(BaseTool):
     name = "MemoryUpdateTool"
-#     description = """
-# <tool>
-#     <name>Memory Update Tool</name>
-#     <description>This tool can update a RECALLED memory's metadata and content.</description>
-#     <guidelines>
-# Use this tool often to keep memories up-to-date with the latest information.
-# You can only update memories that are marked as 'recalled' from the Recalled Memories section.
-#     </guidelines>
-#     <parameters>
-#         <parameter>
-#             <name>memory_id</name>
-#             <description>ID of memory to update</description>
-#             <guidelines>
-# Only use this tool if you have a valid memory ID in the format: mem-<random_string>.
-#             </guidelines>
-#             <required>True</required>
-#         </parameter>
-#         <parameter>
-#             <name>content</name>
-#             <description>the contents of the memory.</description>
-#             <required>False</required>
-#         </parameter>
-#         <parameter>
-#             <name>priority_level</name>
-#             <description>enum: CORE, HIGH, MEDIUM, LOW, BACKGROUND</description>
-#             <required>False</required>
-#         </parameter>
-#         <parameter>
-#             <name>temporal_scope</name>
-#             <description>enum: 'short_term', 'long_term'</description>
-#             <required>False</required>
-#         </parameter>
-#     </parameters>
-# </tool>
-# """
+    description = """This tool can update a RECALLED memory's metadata and content.
 
-    def __init__(self, working_memory, mode='quick', **kwargs):
-        self.working_memory = working_memory
-        self.mode = mode
+Guidelines:
+Use this tool often to keep memories up-to-date with the latest information.
+You can only update memories that are marked as 'recalled' from the Recalled Memories section."""
+
+    parameters = {
+        "memory_id": {
+            "type": "string",
+            "description": "ID of memory to update",
+            "nullable": False
+        },
+        "content": {
+            "type": "string",
+            "description": "the contents of the memory.",
+            "nullable": True
+        },
+        "priority_level": {
+            "type": "string",
+            "enum": ["CORE", "HIGH", "MEDIUM", "LOW", "BACKGROUND"],
+            "description": "The memory's recall priority",
+            "nullable": True
+        },
+        "temporal_scope": {
+            "type": "string",
+            "enum": ["SHORT_TERM", "LONG_TERM"],
+            "description": "How long to store the memory",
+            "nullable": True
+        }
+    }
+
 
     def validate_priority_level(self, priority_level):
         valid_levels = ['CORE', 'HIGH', 'MEDIUM', 'LOW', 'BACKGROUND']

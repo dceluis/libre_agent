@@ -1,3 +1,4 @@
+from openai import chat
 import schedule
 import threading
 import asyncio
@@ -6,7 +7,7 @@ from queue import PriorityQueue
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.working_memory import WorkingMemory, WorkingMemoryAsync
 from libre_agent.logger import logger
-from libre_agent.utils import load_units, load_tools, maybe_invoke_tool, maybe_invoke_tool_new
+from libre_agent.utils import load_units, load_tools, maybe_invoke_tool, maybe_invoke_tool_new_new
 from libre_agent.recall_recognizer import RecallRecognizer
 from libre_agent.units.reasoning_unit import ReasoningUnit
 
@@ -138,12 +139,15 @@ class LibreAgentEngine:
                     self._recall(mode)
 
                 unit = ReasoningUnit(model_name=self.reasoning_model)
-                tool_response = unit.reason(self.working_memory, mode, ape_config)
+                chat_message = unit.reason(self.working_memory, mode, ape_config)
 
-                if tool_response:
-                    used_tools = maybe_invoke_tool_new(self.working_memory, mode, tool_response)
+                if chat_message:
+                    if chat_message.tool_calls:
+                        used_tools = maybe_invoke_tool_new_new(self.working_memory, mode, chat_message.tool_calls)
+                    # elif chat_message.content:
+                    #     used_tools = maybe_invoke_tool(self.working_memory, mode, chat_message.content)
                     # current_context['tools_used'] = used_tools
-                #     reasoning_context.set(current_context)
+                    # reasoning_context.set(current_context)
             finally:
                 reasoning_context.reset(token)
 

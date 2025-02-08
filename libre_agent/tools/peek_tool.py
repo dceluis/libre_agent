@@ -5,25 +5,19 @@ import subprocess
 import time
 import traceback
 from libre_agent.logger import logger
+from libre_agent.tools.base_tool import BaseTool
 from libre_agent.utils import get_world_state_section  # Import the utility function
 
-class PeekTool:
+class PeekTool(BaseTool):
     name = "PeekTool"
-
-#     description = """
-# <tool>
-#     <name>Peek Tool</name>
-#     <description>Captures a screenshot of the current screen and analyzes it.</description>
-#     <parameters>
-#         <parameter>
-#             <name>unit_name</name>
-#             <description>The name of the unit that is using the tool.</description>
-#         </parameter>
-#     </parameters>
-# </tool>
-# """
-    def __init__(self, working_memory, mode='quick', **kwargs):
-        self.working_memory = working_memory
+    description = "Captures a screenshot of the current screen and analyzes it."
+    parameters = {
+        "unit_name": {
+            "type": "string",
+            "description": "The name of the unit that is using the tool.",
+            "nullable": False
+        }
+    }
 
     def run(self, unit_name, **kwargs):
         """Take a screenshot and analyze it using LiteLLM's completion function."""
