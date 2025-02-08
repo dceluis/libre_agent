@@ -52,11 +52,6 @@ benchmark/tmp/**/*
 !bots/Dockerfile
 !bots/*.py
 
-!baml_client/
-!baml_client/**
-
-!baml_src/
-!baml_src/**
 # !pytest.ini
 # !tests/
 # !tests/*.py
