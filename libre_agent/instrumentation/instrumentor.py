@@ -1,6 +1,6 @@
 __version__ = "1.0.0"
 
-from typing import Any, Callable, Collection, Optional
+from typing import Any, Collection
 
 from opentelemetry import trace as trace_api
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor  # type: ignore
@@ -11,7 +11,7 @@ from openinference.instrumentation import (
     TraceConfig,
 )
 from libre_agent.instrumentation._wrappers import (
-    _ExecuteWrapper, _ToolWrapper, _ReasonWrapper
+    _ExecuteWrapper, _ToolWrapper, _ReasonWrapper, _ChatCycleWrapper
 )
 
 _instruments = ("libre_agent >= 0.0.0", "baml_client")
@@ -20,6 +20,7 @@ class LibreAgentInstrumentor(BaseInstrumentor):  # type: ignore
     __slots__ = (
         "_original_execute_method",
         "_original_reason_method",
+        "_original_chat_cycle_run_method", # Add slot for ChatCycle
         "_tracer",
     )
 
@@ -28,8 +29,10 @@ class LibreAgentInstrumentor(BaseInstrumentor):  # type: ignore
 
     def _instrument(self, **kwargs: Any) -> None:
         from libre_agent.reasoning_engine import LibreAgentEngine
+        from libre_agent.units.reasoning_unit import ReasoningUnit
         from libre_agent.utils import load_tools
         from libre_agent.tool_registry import ToolRegistry
+        from libre_agent.dataclasses import ChatCycle # Import ChatCycle
 
         if not (tracer_provider := kwargs.get("tracer_provider")):
             tracer_provider = trace_api.get_tracer_provider()
@@ -67,9 +70,19 @@ class LibreAgentInstrumentor(BaseInstrumentor):  # type: ignore
                 wrapper=tool_wrapper
             )
 
+        # Instrument ChatCycle.run
+        chat_cycle_wrapper = _ChatCycleWrapper(tracer=self._tracer)
+        wrap_function_wrapper(
+            module="libre_agent.dataclasses",
+            name="ChatCycle.run",
+            wrapper=chat_cycle_wrapper
+        )
+
+
     def _uninstrument(self, **kwargs: Any) -> None:
         from libre_agent.reasoning_engine import LibreAgentEngine
         from libre_agent.units.reasoning_unit import ReasoningUnit
+        from libre_agent.dataclasses import ChatCycle
 
         if self._original_execute_method is not None:
             LibreAgentEngine.execute = self._original_execute_method
@@ -78,3 +91,8 @@ class LibreAgentInstrumentor(BaseInstrumentor):  # type: ignore
         if self._original_reason_method is not None:
             ReasoningUnit.reason = self._original_reason_method
             self._original_reason_method = None
+
+        # Uninstrument ChatCycle.run
+        if self._original_chat_cycle_run_method is not None:
+            ChatCycle.run = self._original_chat_cycle_run_method
+            self._original_chat_cycle_run_method = None
