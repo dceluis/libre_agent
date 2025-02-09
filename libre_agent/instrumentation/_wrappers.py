@@ -20,11 +20,6 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 
-# define a custom span kind for execution instrumentation
-EXECUTE = "EXECUTE"
-REASON = "REASON"
-TOOL_RUN = "TOOL.RUN"
-
 def _strip_method_args(arguments: Mapping[str, Any]) -> dict:
     return {key: value for key, value in arguments.items() if key not in ("self", "cls")}
 
@@ -53,7 +48,7 @@ class _ExecuteWrapper:
 
         span_name = f"{instance.__class__.__name__}.execute"
         attributes: Dict[str, AttributeValue] = {
-            OPENINFERENCE_SPAN_KIND: EXECUTE,
+            OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
             INPUT_VALUE: _get_input_value(wrapped, *args, **kwargs),
         }
         # explicitly add key input parameters for better observability
@@ -90,7 +85,7 @@ class _ReasonWrapper:
             return wrapped(*args, **kwargs)
         span_name = f"{instance.__class__.__name__}.reason"
         attributes: Dict[str, AttributeValue] = {
-            OPENINFERENCE_SPAN_KIND: REASON,
+            OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
             INPUT_VALUE: _get_input_value(wrapped, *args, **kwargs)
         }
         attributes.update(dict(get_attributes_from_context()))
@@ -123,7 +118,7 @@ class _ToolWrapper:
 
         span_name = f"{instance.__class__.__name__}.run"
         attributes: Dict[str, AttributeValue] = {
-            OPENINFERENCE_SPAN_KIND: TOOL_RUN,
+            OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.TOOL.value,
             "tool.name": getattr(instance, 'name', instance.__class__.__name__),
             INPUT_VALUE: _get_input_value(wrapped, *args, **kwargs),
             INPUT_MIME_TYPE: "application/json",
@@ -166,30 +161,27 @@ class _ChatCycleWrapper:
 
         span_name = f"{instance.__class__.__name__}.run"
         attributes: Dict[str, AttributeValue] = {
-            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.LLM.value, # or .CHAIN.value
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.LLM.value,
             SpanAttributes.LLM_MODEL_NAME: instance.chat_request.model,
         }
 
-        # Input Messages
-        input_messages = []
-        for message in instance.chat_request.messages:
-            msg_attributes = {
-                MessageAttributes.MESSAGE_ROLE: message.role,
-                MessageAttributes.MESSAGE_CONTENT: message.content,
-            }
-            input_messages.append(safe_json_dumps(msg_attributes))
-        attributes[SpanAttributes.LLM_INPUT_MESSAGES] = input_messages
+        # Input Messages (using the stored prompt_messages)
+        attributes[SpanAttributes.LLM_INPUT_MESSAGES] = [
+            safe_json_dumps({
+                MessageAttributes.MESSAGE_ROLE: message["role"],
+                MessageAttributes.MESSAGE_CONTENT: message["content"],
+            }) for message in instance.prompt_messages
+        ]
 
-        # Tools (if present)
-        if instance.chat_request.tools:
-            attributes[SpanAttributes.LLM_TOOLS] = safe_json_dumps(instance.chat_request.tools)
+        # Tools (using the stored tools_info)
+        if instance.tools_info:
+            attributes[SpanAttributes.LLM_TOOLS] = safe_json_dumps(instance.tools_info)
 
-        #Other attributes
+        # Other attributes
         if instance.chat_request.tool_choice:
-             attributes["llm.tool_choice"] = instance.chat_request.tool_choice
+            attributes["llm.tool_choice"] = instance.chat_request.tool_choice
 
         attributes.update(dict(get_attributes_from_context()))
-
 
         with self._tracer.start_as_current_span(span_name, attributes=attributes) as span:
             try:
@@ -213,6 +205,11 @@ class _ChatCycleWrapper:
                         }
                         tool_calls_list.append(safe_json_dumps(tool_call_attributes))
                     attributes[SpanAttributes.LLM_FUNCTION_CALL] = tool_calls_list
+
+                # Add token counts
+                span.set_attribute(SpanAttributes.LLM_TOKEN_COUNT_PROMPT, instance.input_tokens)
+                span.set_attribute(SpanAttributes.LLM_TOKEN_COUNT_COMPLETION, instance.output_tokens)
+                span.set_attribute(SpanAttributes.LLM_TOKEN_COUNT_TOTAL, instance.total_tokens)
 
             except Exception as e:
                 span.record_exception(e)

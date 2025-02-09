@@ -1,4 +1,4 @@
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 from litellm import completion
 from typing import Union, Dict, Any
 import json
@@ -106,13 +106,24 @@ class ChatRequest:
 
         return cls(**data)
 
+@dataclass
 class ChatCycle:
-    def __init__(self, chat_request: ChatRequest | None, chat_response: ChatRequest | None, **kwargs):
-        self.chat_request = chat_request
-        self.chat_response = chat_response
+    chat_request: ChatRequest | None
+    chat_response: ChatResponse | None
+    input_tokens: int = field(default=0, init=False)  # Add input_tokens
+    output_tokens: int = field(default=0, init=False) # Add output_tokens
+    total_tokens: int = field(default=0, init=False)  # Add total_tokens
+    prompt_messages: list[dict] = field(default_factory=list, init=False) # Store prompt messages
+    tools_info: list[dict] = field(default_factory=list, init=False)      # Store tools info
+
 
     def run(self):
         if self.chat_request:
+            # Store prompt messages and tools info *before* the API call
+            self.prompt_messages = [message.to_dict() for message in self.chat_request.messages]
+            if self.chat_request.tools:
+                self.tools_info = self.chat_request.tools
+
             completion_response = completion(**self.chat_request.to_dict())
 
             chat_response = ChatResponse.from_dict(
@@ -120,18 +131,20 @@ class ChatCycle:
             )
 
             # Get input tokens
-            input_tokens = completion_response['usage']['prompt_tokens']
+            self.input_tokens = completion_response['usage']['prompt_tokens']
 
             # Get output tokens
-            output_tokens = completion_response['usage']['completion_tokens']
+            self.output_tokens = completion_response['usage']['completion_tokens']
+            self.total_tokens = self.input_tokens + self.output_tokens
 
             logging_messages = [
-                (f"Request {message.role} Message", message.content) for message in self.chat_request.messages
+                (f"Request {message['role']} Message", message['content']) for message in self.prompt_messages
             ]
+
 
             logging_messages.extend(
                 [
-                    ("Request Tools", f"{self.chat_request.tools}"),
+                    ("Request Tools", f"{self.tools_info}"),
                     ("Response Content", f"{chat_response.content}"),
                     ("Response Tool Calls", f"{chat_response.tool_calls}")
                 ]
@@ -141,11 +154,11 @@ class ChatCycle:
                 tabulate(
                     logging_messages,
                     tablefmt="grid",
-                    maxcolwidths=[None, 100],  # Wrap long values at 100 characters
+                    maxcolwidths=[None, 100],
                     disable_numparse=True
                 ),
                 extra={
-                    'tokens': { 'input': input_tokens, 'output': output_tokens },
+                    'tokens': {'input': self.input_tokens, 'output': self.output_tokens},
                     'model': self.chat_request.model,
                     'unit': 'reasoning_unit'
                 }

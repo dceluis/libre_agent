@@ -78,7 +78,6 @@ class LibreAgentInstrumentor(BaseInstrumentor):  # type: ignore
             wrapper=chat_cycle_wrapper
         )
 
-
     def _uninstrument(self, **kwargs: Any) -> None:
         from libre_agent.reasoning_engine import LibreAgentEngine
         from libre_agent.units.reasoning_unit import ReasoningUnit
