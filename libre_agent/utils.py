@@ -6,7 +6,7 @@ import re
 from libre_agent.logger import logger
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.tool_registry import ToolRegistry
-from libre_agent.dataclasses import ChatMessageToolCall
+from libre_agent.dataclasses import ChatResponseToolCall
 
 def load_units():
     units_dir = Path(__file__).parent / 'units'
@@ -73,7 +73,7 @@ def format_memories(memories, format: str = 'default'):
 
     return formatted.strip()
 
-def maybe_invoke_tool_new_new(working_memory, mode: str = 'quick', response: list[ChatMessageToolCall] | None = None):
+def maybe_invoke_tool_new_new(working_memory, mode: str = 'quick', response: list[ChatResponseToolCall] | None = None):
     if not response:
         return
 

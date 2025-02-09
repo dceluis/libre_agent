@@ -1,22 +1,19 @@
-from logging import disable
-from litellm import completion
 import traceback
 import time
 import os
-from tabulate import tabulate
 
 from libre_agent.logger import logger
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.utils import get_world_state_section, format_memories
-from libre_agent.dataclasses import ChatMessage
+from libre_agent.dataclasses import ChatCycle
 
 class ReasoningUnit():
     unit_name = "ReasoningUnit"
 
-    def __init__(self, model_name='gemini/gemini-2.0-flash'):
+    def __init__(self, model='gemini/gemini-2.0-flash'):
         super().__init__()
-        self.model_name = model_name
+        self.model = model
         self.personality_traits = self.load_personality_traits()
 
     def load_personality_traits(self):
@@ -215,48 +212,17 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
             tools = [t["schema"] for t in available_tools]
 
             completion_args = {
-                "model": self.model_name,
+                "model": self.model,
                 "messages": messages,
                 "tools": tools,
                 "tool_choice": "auto"
             }
 
-            completion_response = completion(**completion_args)
+            chat_cycle = ChatCycle.from_dict(completion_args)
 
-            chat_message = ChatMessage.from_dict(
-                completion_response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
-            )
+            chat_response = chat_cycle.run()
 
-            # Get input tokens
-            input_tokens = completion_response['usage']['prompt_tokens']
-
-            # Get output tokens
-            output_tokens = completion_response['usage']['completion_tokens']
-
-            logging_messages = [
-                ("Request System prompt", system_prompt),
-                ("Request Instruction", instruction),
-                ("Request Tools", f"{tools}"),
-                ("Response Content", f"{chat_message.content}"),
-                ("Response Tool Calls", f"{chat_message.tool_calls}")
-            ]
-
-            logger.info(
-                tabulate(
-                    logging_messages,
-                    tablefmt="grid",
-                    maxcolwidths=[None, 100],  # Wrap long values at 100 characters
-                    disable_numparse=True
-                ),
-                extra={
-                    'tokens': { 'input': input_tokens, 'output': output_tokens },
-                    'model': self.model_name,
-                    'step': config['step_name'],
-                    'unit': 'reasoning_unit'
-                }
-            )
-
-            return chat_message
+            return chat_response
 
         except Exception as e:
             logger.error(f"Error in reflection: {e}\n{traceback.format_exc()}")

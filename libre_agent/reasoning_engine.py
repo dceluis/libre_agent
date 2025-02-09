@@ -1,4 +1,3 @@
-from openai import chat
 import schedule
 import threading
 import asyncio
@@ -138,7 +137,7 @@ class LibreAgentEngine:
                 if not skip_recall:
                     self._recall(mode)
 
-                unit = ReasoningUnit(model_name=self.reasoning_model)
+                unit = ReasoningUnit(model=self.reasoning_model)
                 chat_message = unit.reason(self.working_memory, mode, ape_config)
 
                 if chat_message:
