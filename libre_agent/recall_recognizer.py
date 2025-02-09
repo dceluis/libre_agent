@@ -35,8 +35,9 @@ class RecallRecognizer:
                 tool_choice="none" # No tools, explicitly set to "none"
             )
 
-            chat_cycle = ChatCycle(chat_request=chat_request, chat_response=None)
-            chat_response = chat_cycle.run()
+            chat_cycle = ChatCycle()
+
+            chat_response = chat_cycle.run(chat_request)
 
             reply = chat_response.content.strip()
 

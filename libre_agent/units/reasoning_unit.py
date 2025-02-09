@@ -6,7 +6,7 @@ from libre_agent.logger import logger
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.utils import get_world_state_section, format_memories
-from libre_agent.dataclasses import ChatCycle
+from libre_agent.dataclasses import ChatCycle, ChatRequest, ChatResponse
 
 class ReasoningUnit():
     unit_name = "ReasoningUnit"
@@ -137,7 +137,7 @@ Contains messages and statuses from the current conversation session including:
 - Other system-generated messages
 """
 
-    def reason(self, working_memory, mode, ape_config={}):
+    def reason(self, working_memory, mode, ape_config={}) -> ChatResponse | None:
         if not working_memory:
             logger.error(f"No internal WorkingMemory for ReasoningUnit")
             return
@@ -218,12 +218,13 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
                 "tool_choice": "auto"
             }
 
-            chat_cycle = ChatCycle.from_dict(completion_args)
+            chat_request = ChatRequest.from_dict(completion_args)
 
-            chat_response = chat_cycle.run()
+            chat_cycle = ChatCycle()
+
+            chat_response = chat_cycle.run(chat_request)
 
             return chat_response
-
         except Exception as e:
             logger.error(f"Error in reflection: {e}\n{traceback.format_exc()}")
             return None

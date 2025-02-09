@@ -162,30 +162,31 @@ class _ChatCycleWrapper:
         span_name = f"{instance.__class__.__name__}.run"
         attributes: Dict[str, AttributeValue] = {
             SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.LLM.value,
-            SpanAttributes.LLM_MODEL_NAME: instance.chat_request.model,
         }
-
-        # Input Messages (using the stored prompt_messages)
-        attributes[SpanAttributes.LLM_INPUT_MESSAGES] = [
-            safe_json_dumps({
-                MessageAttributes.MESSAGE_ROLE: message["role"],
-                MessageAttributes.MESSAGE_CONTENT: message["content"],
-            }) for message in instance.prompt_messages
-        ]
-
-        # Tools (using the stored tools_info)
-        if instance.tools_info:
-            attributes[SpanAttributes.LLM_TOOLS] = safe_json_dumps(instance.tools_info)
-
-        # Other attributes
-        if instance.chat_request.tool_choice:
-            attributes["llm.tool_choice"] = instance.chat_request.tool_choice
 
         attributes.update(dict(get_attributes_from_context()))
 
         with self._tracer.start_as_current_span(span_name, attributes=attributes) as span:
             try:
                 chat_response = wrapped(*args, **kwargs)
+
+                # Input Messages (using the stored prompt_messages)
+                attributes[SpanAttributes.LLM_INPUT_MESSAGES] = [
+                    safe_json_dumps({
+                        MessageAttributes.MESSAGE_ROLE: message["role"],
+                        MessageAttributes.MESSAGE_CONTENT: message["content"],
+                    }) for message in instance.prompt_messages
+                ]
+
+                # Tools (using the stored tools_info)
+                if instance.tools_info:
+                    attributes[SpanAttributes.LLM_TOOLS] = safe_json_dumps(instance.tools_info)
+
+                if instance.chat_request.tool_choice:
+                    attributes["llm.tool_choice"] = instance.chat_request.tool_choice
+
+                if instance.chat_request.model:
+                    attributes[SpanAttributes.LLM_MODEL_NAME] = instance.chat_request.model
 
                 # Output Messages (if present)
                 if chat_response.content:
@@ -210,6 +211,10 @@ class _ChatCycleWrapper:
                 span.set_attribute(SpanAttributes.LLM_TOKEN_COUNT_PROMPT, instance.input_tokens)
                 span.set_attribute(SpanAttributes.LLM_TOKEN_COUNT_COMPLETION, instance.output_tokens)
                 span.set_attribute(SpanAttributes.LLM_TOKEN_COUNT_TOTAL, instance.total_tokens)
+
+                # Set all attributes
+                for key, value in attributes.items():
+                    span.set_attribute(key, value)
 
             except Exception as e:
                 span.record_exception(e)

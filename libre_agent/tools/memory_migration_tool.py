@@ -51,8 +51,7 @@ Omit:
         }
     }
 
-
-    def __init__(self, working_memory, **kwargs):
+    def __init__(self, working_memory, mode=None, **kwargs):
         super().__init__(working_memory, mode='migration', **kwargs)
         self.summary_dir = Path("migration_summaries")
         self.summary_dir.mkdir(parents=True, exist_ok=True)

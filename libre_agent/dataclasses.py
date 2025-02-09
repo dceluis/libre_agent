@@ -103,13 +103,15 @@ class ChatRequest:
                 ChatRequestMessage(**message) for message in data["messages"]
             ]
             data["messages"] = messages
+        if not data.get("tools"):
+            del data["tools"]
 
         return cls(**data)
 
 @dataclass
 class ChatCycle:
-    chat_request: ChatRequest | None
-    chat_response: ChatResponse | None
+    chat_request: ChatRequest | None = None
+    chat_response: ChatResponse | None = None
     input_tokens: int = field(default=0, init=False)  # Add input_tokens
     output_tokens: int = field(default=0, init=False) # Add output_tokens
     total_tokens: int = field(default=0, init=False)  # Add total_tokens
@@ -117,60 +119,56 @@ class ChatCycle:
     tools_info: list[dict] = field(default_factory=list, init=False)      # Store tools info
 
 
-    def run(self):
-        if self.chat_request:
-            self.prompt_messages = [message.to_dict() for message in self.chat_request.messages]
-            if self.chat_request.tools:
-                self.tools_info = self.chat_request.tools
+    def run(self, chat_request: ChatRequest):
+        self.chat_request = chat_request
 
-            completion_response = completion(**self.chat_request.to_dict())
+        chat_request_dict = chat_request.to_dict()
 
-            chat_response = ChatResponse.from_dict(
-                completion_response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
-            )
+        if self.chat_request.messages:
+            self.prompt_messages = chat_request_dict["messages"]
+        if self.chat_request.tools:
+            self.tools_info = chat_request_dict["tools"]
 
-            # Get input tokens
-            self.input_tokens = completion_response['usage']['prompt_tokens']
+        logger.info(f"chat_request_dict: {chat_request_dict}")
 
-            # Get output tokens
-            self.output_tokens = completion_response['usage']['completion_tokens']
-            self.total_tokens = self.input_tokens + self.output_tokens
+        completion_response = completion(**chat_request_dict)
 
-            logging_messages = [
-                (f"Request {message['role']} Message", message['content']) for message in self.prompt_messages
+        chat_response = ChatResponse.from_dict(
+            completion_response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
+        )
+
+        # Get input tokens
+        self.input_tokens = completion_response['usage']['prompt_tokens']
+
+        # Get output tokens
+        self.output_tokens = completion_response['usage']['completion_tokens']
+        self.total_tokens = self.input_tokens + self.output_tokens
+
+        logging_messages = [
+            (f"Request {message['role']} Message", message['content']) for message in self.prompt_messages
+        ]
+
+        logging_messages.extend(
+            [
+                ("Request Tools", f"{self.tools_info}"),
+                ("Response Content", f"{chat_response.content}"),
+                ("Response Tool Calls", f"{chat_response.tool_calls}")
             ]
+        )
 
-
-            logging_messages.extend(
-                [
-                    ("Request Tools", f"{self.tools_info}"),
-                    ("Response Content", f"{chat_response.content}"),
-                    ("Response Tool Calls", f"{chat_response.tool_calls}")
-                ]
-            )
-
-            logger.info(
-                "\n" +
-                tabulate(
-                    logging_messages,
-                    tablefmt="grid",
-                    maxcolwidths=[None, 100],
-                    disable_numparse=True
-                ),
-                extra={
-                    'tokens': {'input': self.input_tokens, 'output': self.output_tokens},
-                    'model': self.chat_request.model,
-                    'unit': 'reasoning_unit'
-                }
-            )
-            self.chat_response = chat_response
-            return chat_response
-        else:
-            raise ValueError("ChatRequest is empty")
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "ChatCycle":
-        chat_request = ChatRequest.from_dict(data)
-        chat_response = None
-
-        return cls(chat_request=chat_request, chat_response=chat_response)
+        logger.info(
+            "\n" +
+            tabulate(
+                logging_messages,
+                tablefmt="grid",
+                maxcolwidths=[None, 100],
+                disable_numparse=True
+            ),
+            extra={
+                'tokens': {'input': self.input_tokens, 'output': self.output_tokens},
+                'model': self.chat_request.model,
+                'unit': 'reasoning_unit'
+            }
+        )
+        self.chat_response = chat_response
+        return chat_response
