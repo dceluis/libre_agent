@@ -6,7 +6,7 @@ authors = ["Your Name <you@example.com>"]
 # You can also add a license, homepage, repository, etc.
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4.0"
+python = ">=3.9,<4.0"
 
 # Core dependencies
 schedule = "1.2.0"
@@ -46,6 +46,53 @@ tabulate = { git = "https://github.com/dceluis/python-tabulate.git", rev = "mast
 pytest = "7.2.0"
 pytest-mock = "3.10.0"
 
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest==7.2.0",
+    "pytest-mock==3.10.0",
+]
+
+[tool.pdm.build]
+includes = []
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[project]
+authors = [
+    {name = "Your Name", email = "you@example.com"},
+]
+requires-python = "<4.0,>=3.9"
+dependencies = [
+    "schedule==1.2.0",
+    "Pillow==10.0.0",
+    "networkx==3.0",
+    "colorama==0.4.6",
+    "litellm>=1.55.9",
+    "python-json-logger==2.0.7",
+    "baml-py==0.73.5",
+    "fastapi",
+    "uvicorn",
+    "websockets",
+    "python-multipart",
+    "prompt-toolkit",
+    "aiogram",
+    "datasette",
+    "datasette-vega",
+    "arize-phoenix",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
+    "opentelemetry-instrumentation",
+    "tabulate @ git+https://github.com/dceluis/python-tabulate.git@master",
+]
+name = "libre_agent"
+version = "0.1.0"
+description = "Merged representation of the entire codebase."
+
+[dependency-groups]
+dev = [
+    "pytest==7.2.0",
+    "pytest-mock==3.10.0",
+]

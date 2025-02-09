@@ -3,7 +3,10 @@
 
 # But not these files...
 !.gitignore
+
 !pyproject.toml
+!uv.lock
+
 !README.md
 !about.md
 
