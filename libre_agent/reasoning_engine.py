@@ -6,25 +6,13 @@ from queue import PriorityQueue
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.working_memory import WorkingMemory, WorkingMemoryAsync
 from libre_agent.logger import logger
-from libre_agent.utils import load_units, load_tools, maybe_invoke_tool, maybe_invoke_tool_new_new
+from libre_agent.utils import load_units, load_tools, maybe_invoke_tool_new
 from libre_agent.recall_recognizer import RecallRecognizer
 from libre_agent.units.reasoning_unit import ReasoningUnit
 
-import uuid
 from contextvars import ContextVar, copy_context
 
-ctx_default_value = {
-    'mode': 'quick',
-    'correlation_id': None,
-    'memory_ids': [],
-    'tools_used': []
-}
-
-# Context variables setup
-reasoning_context = ContextVar('reasoning', default=ctx_default_value)
-
-def new_correlation_id() -> str:
-    return str(uuid.uuid4())[:8]
+reasoning_context = ContextVar('reasoning', default={})
 
 class LibreAgentEngine:
     def __init__(
@@ -119,36 +107,22 @@ class LibreAgentEngine:
     def execute(self, mode='quick', skip_recall=False, ape_config={}):
         # Set up execution context
         ctx = copy_context()
-        corr_id = new_correlation_id()
 
         def _execute_in_context():
             if self.memory_graph_file:
                 MemoryGraph.set_graph_file(self.memory_graph_file)
 
-            current_context = {
-                'mode': mode,
-                'correlation_id': corr_id,
-                'memory_ids': [m['memory_id'] for m in self.working_memory.memories],
-                'tools_used': []
-            }
-            token = reasoning_context.set(current_context)
+            if not skip_recall:
+                self._recall(mode)
 
-            try:
-                if not skip_recall:
-                    self._recall(mode)
+            unit = ReasoningUnit(model=self.reasoning_model)
+            chat_message = unit.reason(self.working_memory, mode, ape_config)
 
-                unit = ReasoningUnit(model=self.reasoning_model)
-                chat_message = unit.reason(self.working_memory, mode, ape_config)
-
-                if chat_message:
-                    if chat_message.tool_calls:
-                        used_tools = maybe_invoke_tool_new_new(self.working_memory, mode, chat_message.tool_calls)
-                    # elif chat_message.content:
-                    #     used_tools = maybe_invoke_tool(self.working_memory, mode, chat_message.content)
-                    # current_context['tools_used'] = used_tools
-                    # reasoning_context.set(current_context)
-            finally:
-                reasoning_context.reset(token)
+            if chat_message:
+                if chat_message.tool_calls:
+                    used_tools = maybe_invoke_tool_new(self.working_memory, mode, chat_message.tool_calls)
+                # elif chat_message.content:
+                #     used_tools = maybe_invoke_tool(self.working_memory, mode, chat_message.content)
 
         ctx.run(_execute_in_context)
 
@@ -180,8 +154,7 @@ class LibreAgentEngine:
         logger.info("libreagentengine: fully stopped.")
 
     def _recall(self, mode='quick'):
-        ctx = reasoning_context.get()
-        logger.debug("Starting recall process", extra={'correlation_id': ctx['correlation_id']})
+        logger.debug("Starting recall process")
 
         recalled_memories = self.working_memory.get_memories(metadata={'recalled': True})
         recent_memories = self.working_memory.get_memories(metadata={'recalled': [False, None]}, last=40)
@@ -211,9 +184,4 @@ class LibreAgentEngine:
         self.working_memory.memories.extend(recalled)
         self.working_memory.memories.extend(recent_memories)
 
-        if ctx['memory_ids'] is None:
-            ctx['memory_ids'] = []
-        ctx['memory_ids'].extend([m['memory_id'] for m in recalled])
-        reasoning_context.set(ctx)
-
-        logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.working_memory.id}", extra={'correlation_id': ctx['correlation_id']})
+        logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.working_memory.id}")

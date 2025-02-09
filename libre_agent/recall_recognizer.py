@@ -1,14 +1,14 @@
-from litellm import completion
 import re
 from .memory_graph import MemoryGraph
 from .logger import logger
 from .utils import format_memories
 import traceback
+from .dataclasses import ChatCycle, ChatRequest, ChatRequestMessage
 
 class RecallRecognizer:
 
     def recall_memories(self, prompt, exclude_memory_ids=None):
-        # fetch last 100 memories
+        # fetch last 1000 memories
         memories = MemoryGraph().get_memories(last=1000)
 
         # exclude provided memory ids
@@ -23,34 +23,22 @@ class RecallRecognizer:
 
         # call llm
         try:
-            logger.debug(f"[RecallRecognizer] system_prompt: {system_prompt}")
-            logger.debug(f"[RecallRecognizer] constructed_prompt: {constructed_prompt}")
+            messages = [
+                ChatRequestMessage(role="system", content=system_prompt),
+                ChatRequestMessage(role="user", content=constructed_prompt)
+            ]
 
-            completion_response = completion(
+            chat_request = ChatRequest(
                 model="gemini/gemini-2.0-flash-lite-preview-02-05",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": constructed_prompt}
-                ]
+                messages=messages,
+                tools=None,  # No tools needed for recall
+                tool_choice="none" # No tools, explicitly set to "none"
             )
 
-            logger.debug(f"completion_response:\n{completion_response}")
+            chat_cycle = ChatCycle(chat_request=chat_request, chat_response=None)
+            chat_response = chat_cycle.run()
 
-            reply = completion_response['choices'][0]['message']['content'].strip()
-
-            input_tokens = completion_response['usage']['prompt_tokens']
-
-            output_tokens = completion_response['usage']['completion_tokens']
-
-            logger.info(
-                f"RecallRecognizer:\n{reply}",
-                extra={
-                    'tokens': {'input': input_tokens, 'output': output_tokens},
-                    'model': 'gemini-1.5-flash-8b',
-                    'step': 'recall_recognizer',
-                    'unit': 'reasoning_unit'
-                }
-            )
+            reply = chat_response.content.strip()
 
             # parse out memory ids
             memory_ids = self.parse_response(reply)

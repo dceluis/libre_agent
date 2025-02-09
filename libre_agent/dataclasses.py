@@ -31,7 +31,7 @@ class ChatResponseToolCall:
 @dataclass
 class ChatResponse:
     role: str
-    content: str | None = None
+    content: str
     tool_calls: list[ChatResponseToolCall] | None = None
 
     @classmethod
@@ -62,7 +62,7 @@ class ChatRequestMessage:
 class ChatRequest:
     model: str
     messages: list[ChatRequestMessage]
-    tools: dict | None
+    tools: list[dict[str, Any]] | None
     tool_choice: str
     extra_attributes: Dict[str, Any]
 
@@ -119,7 +119,6 @@ class ChatCycle:
 
     def run(self):
         if self.chat_request:
-            # Store prompt messages and tools info *before* the API call
             self.prompt_messages = [message.to_dict() for message in self.chat_request.messages]
             if self.chat_request.tools:
                 self.tools_info = self.chat_request.tools
@@ -151,6 +150,7 @@ class ChatCycle:
             )
 
             logger.info(
+                "\n" +
                 tabulate(
                     logging_messages,
                     tablefmt="grid",

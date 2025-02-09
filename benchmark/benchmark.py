@@ -25,6 +25,18 @@ from libre_agent.logger import logger
 from libre_agent.reasoning_engine import LibreAgentEngine
 from libre_agent.utils import format_memories
 
+
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from libre_agent.instrumentation.instrumentor import LibreAgentInstrumentor
+
+endpoint = "http://0.0.0.0:6006/v1/traces"
+trace_provider = TracerProvider()
+trace_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+
+LibreAgentInstrumentor().instrument(tracer_provider=trace_provider, skip_dep_check=True)
+
 config = {
     'reasoning_model': 'gemini/gemini-2.0-flash-exp',
     'evaluator_model': 'gemini/gemini-2.0-flash-exp'
