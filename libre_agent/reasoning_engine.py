@@ -17,7 +17,7 @@ class LibreAgentEngine:
     def __init__(
         self,
         deep_schedule=10,
-        reasoning_model="gemini/gemini-2.0-flash-exp",
+        reasoning_model="gemini/gemini-2.0-flash-001",
         sync=False,
         memory_graph_file=None,
     ):

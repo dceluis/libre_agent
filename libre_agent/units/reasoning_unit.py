@@ -12,7 +12,7 @@ from libre_agent.units.base_unit import BaseUnit
 class ReasoningUnit(BaseUnit): #Inherit from BaseUnit
     unit_name = "ReasoningUnit"
 
-    def __init__(self, model='gemini/gemini-2.0-flash'):
+    def __init__(self, model='gemini/gemini-2.0-flash-001'):
         super().__init__() # keep the super init
         self.model = model
         self.personality_traits = self.load_personality_traits()

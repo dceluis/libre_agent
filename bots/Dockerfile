@@ -7,8 +7,12 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install uv
+
+COPY pyproject.toml ./
+COPY uv.lock ./
+
+RUN uv sync
 
 # copy entire codebase
 COPY . .
@@ -17,4 +21,4 @@ COPY . .
 ENV TELEGRAM_BOT_TOKEN=""
 
 # start the telegram bot
-CMD ["python", "bots/telegram.py", "--deep-schedule=2"]
+CMD ["uv", "run", "bots/telegram.py", "--deep-schedule=2"]
