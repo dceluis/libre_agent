@@ -11,8 +11,7 @@
 !about.md
 
 !main.py
-!utils.py
-!logger.py
+!docker-compose.yml
 
 !unit_registry.py
 !tool_registry.py
