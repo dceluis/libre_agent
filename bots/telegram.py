@@ -15,7 +15,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from libre_agent.instrumentation.instrumentor import LibreAgentInstrumentor
 
-endpoint = "http://0.0.0.0:6006/v1/traces"
+endpoint = os.getenv("PHOENIX_ENDPOINT", "http://0.0.0.0:6006/v1/traces")
 trace_provider = TracerProvider()
 trace_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
 

@@ -1,27 +1,28 @@
 services:
   telegram_bot:
     build:
-      context: .  # Build from the current directory (where your Dockerfile is)
+      context: .
       dockerfile: bots/Dockerfile
     environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}  # Pass API key from your environment
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}  # Pass Telegram token
-      - LOG_LEVEL=DEBUG # Optional: Set log level.  Good for initial setup.
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - LOG_LEVEL=DEBUG
+      - PHOENIX_ENDPOINT=http://phoenix:6006/v1/traces
     volumes:
-      - .:/app  # Mount the current directory to /app inside the container
+      - .:/app
     depends_on:
-      - phoenix  # Ensure Phoenix starts before the bot (not strictly necessary, but good practice)
-    restart: unless-stopped # Restart policy
+      - phoenix
+    restart: unless-stopped
 
   phoenix:
     image: arizephoenix/phoenix
     ports:
-      - "6006:6006"  # Expose Phoenix UI on port 9000 (you can change this)
+      - "6006:6006"
     environment:
-        - PHOENIX_PORT=6006 # Set internal phoenix port
+        - PHOENIX_PORT=6006
     volumes:
-      - phoenix_data:/data  # Optional: Named volume for persistent Phoenix data
-    restart: unless-stopped # Restart policy
+      - phoenix_data:/data
+    restart: unless-stopped
 
 volumes:
-  phoenix_data:  # Define the named volume (if you want persistence)
+  phoenix_data:
