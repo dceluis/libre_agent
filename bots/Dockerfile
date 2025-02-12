@@ -15,10 +15,11 @@ COPY uv.lock ./
 RUN uv sync
 
 # copy entire codebase
-COPY . .
+COPY ./libre_agent ./libre_agent
+COPY ./bots ./bots
 
 # set telegram bot token (override at runtime or via docker-compose/env file)
 ENV TELEGRAM_BOT_TOKEN=""
 
 # start the telegram bot
-CMD ["uv", "run", "bots/telegram.py", "--deep-schedule=2"]
+CMD ["uv", "run", "bots/telegram.py", "--deep-schedule=2", "--memory-graph-file=tmp.pkl"]
