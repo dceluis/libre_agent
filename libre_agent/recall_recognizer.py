@@ -1,15 +1,15 @@
 import re
-from .memory_graph import MemoryGraph
-from .logger import logger
-from .utils import format_memories
+from libre_agent.memory_graph import memory_graph
+from libre_agent.logger import logger
+from libre_agent.utils import format_memories
+from libre_agent.dataclasses import ChatCycle, ChatRequest, ChatRequestMessage
+
 import traceback
-from .dataclasses import ChatCycle, ChatRequest, ChatRequestMessage
 
 class RecallRecognizer:
 
     def recall_memories(self, prompt, exclude_memory_ids=None):
-        # fetch last 1000 memories
-        memories = MemoryGraph().get_memories(last=1000)
+        memories = memory_graph.get_memories(last=1000)
 
         # exclude provided memory ids
         logger.debug(f"Excluded memories: {exclude_memory_ids}")
@@ -82,7 +82,7 @@ ASSISTANT: Relevant memory ids:
 
     def construct_prompt(self, prompt, memories):
         constructed_prompt = f"""
-The user prompt is:
+The recall prompt is:
 
 "{prompt}"
 
@@ -91,8 +91,7 @@ Below is a list of previous memories, each with an id and content. Decide which 
 Memories:
 {format_memories(memories)}
 
-Return a comma-separated list memory ids that are relevant to the user prompt.
-Return a minimum of 0 memories and a maximum of 5 memories
+Return a comma-separated list memory ids that are relevant to the prompt.
 
 If no memories are relevant, return an empty list.
 """

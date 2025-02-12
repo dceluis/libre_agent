@@ -5,11 +5,7 @@ from libre_agent.tools.base_tool import BaseTool
 
 class MemoryDeleteTool(BaseTool):
     name = "MemoryDeleteTool"
-    description = """This tool permanently purges a memory from the system.
-
-Guidelines:
-Memories in the working memory CANNOT be deleted. They will automatically clear once they're no longer needed.
-You can only delete memories that are marked as 'recalled' from the Recalled Memories section."""
+    description = """This tool permanently deletes a stored memory from the system."""
 
     parameters = {
         "memory_id": {
@@ -20,39 +16,38 @@ You can only delete memories that are marked as 'recalled' from the Recalled Mem
     }
 
     def run(self, memory_id: str, **kwargs):
-        recalled_memories = self.working_memory.get_memories(metadata={'recalled': True})
-        recent_memories = self.working_memory.get_memories(metadata={'recalled': [False, None]})
+        memories = self.working_memory.get_memories()
 
-        recalled_memory_ids = [m['memory_id'] for m in recalled_memories]
-        working_memory_ids = [m['memory_id'] for m in recent_memories]
+        working_memory_ids = [m['memory_id'] for m in memories]
 
         if memory_id in working_memory_ids:
-            logger.error(f"Cannot delete memory '{memory_id}' while it's in working memory")
+            logger.info(f"Deleting memory '{memory_id}'")
 
-            self.working_memory.add_memory(
-                memory_type='internal',
-                content=f"Cannot delete memory '{memory_id}' while it's in working memory",
-                metadata={
-                    'unit_name': 'Memory Delete Tool',
-                    'reasoning_mode': self.mode,
-                    'role': 'tool_result'
-                }
-            )
+            removed_from_wm = self.working_memory.remove_memory(memory_id)
 
-            return False
-        elif memory_id in recalled_memory_ids:
-            # Remove the memory from the working memory
-            new_memories = [m for m in self.working_memory.memories if m['memory_id'] != memory_id]
-            self.working_memory.memories = new_memories
+            removed_from_graph = memory_graph.remove_memory(memory_id)
+
+            if removed_from_wm or removed_from_graph:
+                logger.debug(f"Memory purged: id='{memory_id}'")
+
+                # Cannot enable this as is because the working_memory cant be
+                # cleaned if a new memory is added for every memory that is removed
+                # self.working_memory.add_memory(
+                #     memory_type='internal',
+                #     content=f"Deleted memory '{memory_id}' while it's in working memory",
+                #     metadata={
+                #         'unit_name': 'Memory Delete Tool',
+                #         'reasoning_mode': self.mode,
+                #         'role': 'tool_result'
+                #     }
+                # )
+
+                return True
+            else:
+                return False
         else:
             logger.error(f"Memory with ID '{memory_id}' not found in working_memory")
             return False
-
-        memory_graph.remove_memory(memory_id)
-
-        logger.debug(f"Memory purged: id='{memory_id}'")
-
-        return True
 
 # Register the tool
 ToolRegistry.register_tool(MemoryDeleteTool)

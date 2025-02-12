@@ -13,7 +13,7 @@ class BaseTool(ABC):
         self._init_metadata()
 
     @abstractmethod
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs) -> bool:
         """
         Abstract method for tool execution.  Must be implemented by subclasses.
         """

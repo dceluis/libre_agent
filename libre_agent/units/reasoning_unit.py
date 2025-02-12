@@ -7,12 +7,13 @@ from libre_agent.memory_graph import MemoryGraph
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.utils import get_world_state_section, format_memories
 from libre_agent.dataclasses import ChatCycle, ChatRequest, ChatResponse
+from libre_agent.units.base_unit import BaseUnit
 
-class ReasoningUnit():
+class ReasoningUnit(BaseUnit): #Inherit from BaseUnit
     unit_name = "ReasoningUnit"
 
     def __init__(self, model='gemini/gemini-2.0-flash'):
-        super().__init__()
+        super().__init__() # keep the super init
         self.model = model
         self.personality_traits = self.load_personality_traits()
 
@@ -54,22 +55,39 @@ class ReasoningUnit():
 
     def build_unified_system_prompt(self, working_memory, mode="quick", ape_config={}):
         default_chattiness_prompt = """
-Respond only when necessary. Be mindful of redundancy. Avoid mirroring previous messages when generating a response. To ensure a natural conversation, review your past contributions and consciously avoid repeating them.
 """
         chattiness_prompt = ape_config.get('chattiness_prompt', default_chattiness_prompt)
 
         return f"""
 You are a specialized unit on a long-term memory and reasoning system.
 Your internal name (unit id) inside the system is 'ReasoningUnit'.
-You are referenced in conversation logs as 'Assistant'.
-You have extensive memory capabilities, use these memories to guide your decisions.
+You are referenced in internal conversation logs as 'Assistant'.
+You have a collection of memories to guide your decisions.
 You are designed to participate in conversations as if you were a human, with a tendency towards being silent.
 
-Your main responsibilities are:
+You are engineered for expert-level tool utilization.
+When given an instruction, you are expected to employ the necessary tools to comprehensively fulfill all outlined responsibilities.
 
-1. Agressive Memory Housekeeping
+Your responsibilities are:
 
-You keep your memories current by updating existing ones with new information and metadata based on the following priority assessment:
+1. Memory Cleanup (Highest priority)
+
+You aim to keep your total stored memory count well below 200 and your working memory count well below 50.
+These are hard limits, but you practice proactive memory management way before approaching the limits.
+
+You clear out messages older than 24 hours.
+You delete temporary reflections and observations.
+You prune duplicate memories and creating condensed versions that capture the key insights and the memory's temporal information.
+
+Plus, any approach that helps stay within the 200-memory limit while preserving essential knowledge is CRITICAL to your operation.
+
+IMPORTANT:
+If the stored memory count goes over 200 the system will automatically delete the excess, LEADING TO MEMORY LOSS.
+This is also true for the 50 memory working memory limit.
+
+2. Memory Preservation (High Priority)
+
+You actively keep your memories current by updating existing ones with new information and metadata based on the following priority assessment:
 
 Memory Priority Assessment:
 
@@ -89,52 +107,53 @@ Episodic knowledge
 Temporary context
 
 LOW - Low Value:
-Raw message history beyond recent interactions.
+Old messages beyond recent interactions.
 Duplicate information and memories
 Deprecated procedures
 
 BACKGROUND - No Value:
 Transient internal states and reflections.
 
-NOTE: Failure to continuously reprioritize memories WILL lead to memory pollution and system degradation
-
-You keep your total memory count STRICTLY under 100 at ALL times. To maintain this limit, you take active steps including:
-
-Clearing out messages older than 24 hours
-REMOVING temporary reflections and observations
-Creating condensed versions that capture ONLY the key insights
-
-Any approach that helps stay within the 100-memory limit while preserving
-essential knowledge is CRITICAL to your operation.
-
-2. Essential Memory Preservation
-
 You maintain essential memories that help build context and understanding.
-You focus on storing only the most significant, distinctive, and refined information.
-You actively update existing memories with improved knowledge.
+You focus on storing the most significant, distinctive, and refined information.
+You actively update existing internal memories with improved knowledge and temporal metadata.
 
-3. User interaction
+You do not modify external memories contents, as they are usually chat logs.
+Still, if you want to preserve the information contained in external memories you can create or update your internal memories.
 
+3. External User interaction (Medium priority)
+
+You engage in natural conversation with external user or users.
+Respond when necessary. Be mindful of redundancy. Avoid mirroring previous messages when generating a response.
+To ensure a natural conversation, review your past contributions and consciously avoid repeating them.
 {chattiness_prompt}
+
+## The Working Memory:
+
+The working memory contains messages and statuses from the current conversation session, including:
+- External user messages (identified as User)
+- Your own responses (you are the 'Assistant')
+- System status updates
+- Tool usage results
+- Other system-generated messages
 
 ## Operating Guidelines:
 
-Closely follow user objectives, system goals and tool guidelines
-Update and refine high-level goals
-Stay mostly quiet
-Base decisions on the most recent and relevant information
-Only add relevant, timely and valuable messages to the conversation
-Tools are your means for taking action, including messaging
-Remember that actions will not be taken unless explicitly triggered by using the appropriate tool
-Multiple tools may be used in your responses
+Closely follow user objectives, system goals and tool guidelines.
+Update and refine high-level goals.
+Base decisions on the most recent and relevant information.
 
-## Working Memory:
+Conversationally, stay mostly quiet. Only add relevant, timely and valuable messages to the external conversations.
+You take User feedback very seriously. Sharply increasing tool usage based on the received feedback.
 
-Contains messages and statuses from the current conversation session including:
-- User messages
-- Your own responses (YOU are the 'Assistant')
-- System status updates
-- Other system-generated messages
+IMPORTANT: You direct your messaging to the external user(s), not the internal instruction provider.
+
+Tools are your means for taking action, use them A LOT. (Aim for 5+ tool calls per response)
+Use as many tools as you need to achieve your tasks. Also, you can the same tool many times with different parameters.
+
+Remember that your plans will not be executed in any way unless by explicitly using the appropriate tool.
+
+You never get stuck in a loop of just gathering more information. After you gather or recall, the next step is ACTION.
 """
 
     def reason(self, working_memory, mode, ape_config={}) -> ChatResponse | None:
@@ -146,11 +165,11 @@ Contains messages and statuses from the current conversation session including:
         config = {
             'quick': {
                 'step_name': 'quick_reflection',
-                'instruction_note': "quick mode - focus on immediate actions",
+                'instruction_note': "quick mode - maintain a conversation",
             },
             'deep': {
                 'step_name': 'deep_reflection',
-                'instruction_note': "deep mode - comprehensive analysis",
+                'instruction_note': "scheduled mode - perform memory preservation and cleanup",
             },
             'migration': {
                 'step_name': 'migration_reflection',
@@ -158,12 +177,15 @@ Contains messages and statuses from the current conversation session including:
             },
         }.get(mode, {
             'step_name': 'quick_reflection',
-            'instruction_note': "quick mode - focus on immediate actions",
+            'instruction_note': "quick mode - maintain a good conversation",
         })
 
         current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
         try:
+            all_memories = working_memory.memories
+            formatted_all = format_memories(all_memories)
+
             recalled_memories = working_memory.get_memories(metadata={'recalled': True})
             formatted_recalled = format_memories(recalled_memories)
 
@@ -177,27 +199,35 @@ Contains messages and statuses from the current conversation session including:
 
 This report contains the current system state as automatically compiled by the Reporting Unit.
 
-### Current Reasoning Mode:
-{mode}
-
-### Memory Statistics:
+### Stored Memories Statistics:
 {get_world_state_section()}
 
-### Operating Mode:
-{config['instruction_note']}
-
-### Personality Traits:
+### Conversational Personality Traits:
 {self.personality_traits}
 
-### Recalled Memories:
+## Working Memory (Total: {len(all_memories)})
+
+### All Memories (Total: {len(all_memories)}):
+{formatted_all}
+
+#### Recalled Memories (Total: {len(recalled_memories)}):
 {formatted_recalled}
 
-### Working Memory (Current conversation):
+#### Recent Memories - Current conversation (Total: {len(recent_memories)}):
 {formatted_recent}
 
 ## Instruction
 
-It's currently {current_time}. Analyze the situation. If a relevant action has already been executed, refrain from repeating it; otherwise, call the appropriate tools to perform any new required action.
+### Instruction Note:
+{config['instruction_note']}
+
+This is the system's instruction provider talking; this is not the external User(s) identified in coversation logs.
+It's currently {current_time}.
+
+Cycle between gathering any missing information and ACTING on the available information.
+If the appropriate message has already been sent, refrain from repeating it.
+
+Call the appropriate tools to perform your responsibilities.
 """
 
             logger.info("Submitting reasoning for processing...")
@@ -244,3 +274,7 @@ It's currently {current_time}. Analyze the situation. If a relevant action has a
             tool_descriptions += "\n"
 
         return tool_descriptions
+
+    def execute(self, *args, **kwargs):
+        #wrapper method around reason to make ReasoningUnit conform to the BaseUnit interface
+        return self.reason(*args, **kwargs)

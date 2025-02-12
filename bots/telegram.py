@@ -110,6 +110,10 @@ async def handle_commands(message: Message):
         await engine.migrate()
 
         await message.reply("Migration process started...")
+    elif command == "/purge":
+        await engine.purge()
+
+        await message.reply("Purged working memory...")
     else:
         await message.reply("Sorry, I don't recognize that command.")
 

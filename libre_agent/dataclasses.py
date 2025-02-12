@@ -129,8 +129,6 @@ class ChatCycle:
         if self.chat_request.tools:
             self.tools_info = chat_request_dict["tools"]
 
-        logger.info(f"chat_request_dict: {chat_request_dict}")
-
         completion_response = completion(**chat_request_dict)
 
         chat_response = ChatResponse.from_dict(

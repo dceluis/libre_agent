@@ -3,6 +3,11 @@ import time
 import asyncio
 from libre_agent.logger import logger
 from collections import deque
+import secrets
+
+def generate_memory_id():
+    random_part = secrets.token_hex(4)[:8]
+    return f"mem-{random_part}"
 
 class WorkingMemory:
     def __init__(self):
@@ -36,8 +41,26 @@ class WorkingMemory:
     def _process_memory(self, memory):
         self._notify_observers(memory)
 
+    def append_memory(self, memory):
+        self.memories.append(memory)
+
+        self._process_memory(memory)
+
+        logger.info(f"Added memory to WorkingMemory {self.id}")
+
+        return memory
+
+    def remove_memory(self, memory_id):
+        for i in range(len(self.memories)):
+            if self.memories[i]['memory_id'] == memory_id:
+                del self.memories[i]
+                logger.info(f"Removed memory {memory_id} from WorkingMemory {self.id}")
+                return True
+        logger.warning(f"Attempted to remove non-existent memory: {memory_id}")
+        return False
+
     def add_memory(self, memory_type, content, parent_memory_ids=None, metadata=None):
-        memory_id = 'N/A'
+        memory_id = generate_memory_id()
 
         if parent_memory_ids is None:
             parent_memory_ids = []
@@ -70,11 +93,7 @@ class WorkingMemory:
             'timestamp': time.time()
         }
 
-        self.memories.append(memory)
-
-        self._process_memory(memory)
-
-        logger.info(f"Added memory to WorkingMemory {self.id}")
+        self.append_memory(memory)
 
         return memory
 
@@ -145,6 +164,10 @@ class WorkingMemory:
         if memories:
             return memories[0]['content']
         return None
+
+    def clear(self):
+        self._memories = deque(maxlen=50)
+        logger.info(f"Cleared all memories from WorkingMemory {self.id}")
 
 class WorkingMemoryAsync(WorkingMemory):
     def __init__(self) -> None:

@@ -1,6 +1,6 @@
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.logger import logger
-from libre_agent.memory_graph import MemoryGraph
+from libre_agent.memory_graph import memory_graph
 from libre_agent.tools.base_tool import BaseTool
 
 class MemoryUpdateTool(BaseTool):
@@ -52,7 +52,6 @@ You can only update memories that are marked as 'recalled' from the Recalled Mem
             return 'short_term'
 
     def run(self, memory_id: str, content: str | None = None, priority_level: str | None = None, temporal_scope: str | None = None, **kwargs):
-        memory_graph = MemoryGraph()
 
         # Validate inputs
         priority_level = self.validate_priority_level(priority_level)

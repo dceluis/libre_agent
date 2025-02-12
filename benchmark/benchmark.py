@@ -10,7 +10,6 @@ import copy
 from datetime import datetime
 from tabulate import tabulate
 from time import perf_counter
-from contextvars import copy_context
 
 import litellm
 
@@ -85,8 +84,6 @@ def inspect_eval(wm):
 def populate_memory_graph(memories_data: list, working_memory):
     time_parser = NaturalTimeParser()
 
-    memory_ids = []
-
     for msg in memories_data:
         role = msg.get("role", "user")
         content = msg.get("content", "")
@@ -125,28 +122,20 @@ def populate_memory_graph(memories_data: list, working_memory):
         if internal is not None:
             memory_type = 'internal' if internal else 'external'
 
-        memory_id = memory_graph.add_memory(
+        memory = memory_graph.add_memory(
             timestamp=timestamp,
             memory_type=memory_type,
             content=content,
             metadata=metadata
         )
 
-        memory_ids.append(memory_id)
-
         if recall:
-            metadata['recalled'] = True
+            memory["metadata"]['recalled'] = True
 
         if recall or add_to_working_memory:
-            working_memory.memories.append({
-                "memory_id": memory_id,
-                "content": content,
-                "metadata": metadata,
-                "memory_type": memory_type,
-                "timestamp": timestamp
-            })
+            working_memory.memories.append(memory)
 
-    return memory_ids
+    return True
 
 def run_scenario_attempt(run_id: str, scenario_data: dict, eval_idx: int, attempt: int, ape_config: dict = {}):
     runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')

@@ -5,13 +5,13 @@ from libre_agent.tools.base_tool import BaseTool
 
 class MemoryCreateTool(BaseTool):
     name = "MemoryCreateTool"
-    description = """This tool add a persistent memory to the system."""
+    description = """This tool adds a new internal memory to the system's memory storage."""
 
     parameters = {
         "unit_name": {
             "type": "string",
             "description": "The name of the unit that is using the tool.",
-            "nullable": True
+            "nullable": False
         },
         "content": {
             "type": "string",
@@ -72,30 +72,29 @@ class MemoryCreateTool(BaseTool):
             'reasoning_mode': self.mode,
         }
 
-        memory_id = memory_graph.add_memory(
+        memory = memory_graph.add_memory(
             memory_type='internal',
             content=content,
             metadata=metadata,
         )
 
+        memory_id = memory["memory_id"]
+
         if role != 'reflection':
-            metadata['recalled'] = True
+            memory["metadata"]['recalled'] = True
 
-        memory = self.working_memory.add_memory(
-            memory_type='internal',
-            content=content,
-            metadata=metadata
-        )
-
-        memory['memory_id'] = memory_id
+        memory = self.working_memory.append_memory(memory)
 
         logger.debug(
-                f"Memory added for unit='{unit_name}'"
+                f"Memory added"
+                f": id='{memory_id}'"
+                f", unit='{unit_name}'"
                 f", priority={priority_level}"
                 f", scope={temporal_scope}"
                 f", role={role}"
                 f", content={content}"
         )
+
         return True
 
 ToolRegistry.register_tool(MemoryCreateTool)

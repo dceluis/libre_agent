@@ -2,7 +2,6 @@ import schedule
 import threading
 import asyncio
 from queue import PriorityQueue
-
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.working_memory import WorkingMemory, WorkingMemoryAsync
 from libre_agent.logger import logger
@@ -43,7 +42,12 @@ class LibreAgentEngine:
         self.async_task2 = None
         self.reflection_schedule = None
 
+        self.reasoning_queue_counter = 0
+
         logger.info(f"libreagentengine: initialized with deep_schedule={deep_schedule}, reasoning_model={reasoning_model}")
+
+    def purge(self):
+        self.working_memory.clear()
 
     async def schedule_reasoning_queue(self):
         last_next_deep = None
@@ -80,17 +84,22 @@ class LibreAgentEngine:
         while not self.stop_flag.is_set():
             try:
                 if not self.reasoning_queue.empty():
-                    _, func = self.reasoning_queue.get_nowait()
+                    # Get the priority, counter, and function
+                    priority, _, func = self.reasoning_queue.get_nowait()
                     if self.reasoning_lock.acquire(blocking=False):
                         try:
+                            logger.debug(f"Processing reasoning task with priority {priority}") #added logging for debugging
                             await func()
+                        except Exception as e:
+                            logger.error(f"Error within queued function: {e}", exc_info=True)
                         finally:
                             self.reasoning_lock.release()
 
             except Exception as e:
                 logger.error(f"Error in reasoning queue processing: {e}", exc_info=True)
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)  # Reduce busy-waiting; sleep briefly
+
 
     def start(self):
         schedule.clear()
@@ -112,17 +121,17 @@ class LibreAgentEngine:
             if self.memory_graph_file:
                 MemoryGraph.set_graph_file(self.memory_graph_file)
 
-            if not skip_recall:
-                self._recall(mode)
-
             unit = ReasoningUnit(model=self.reasoning_model)
             chat_message = unit.reason(self.working_memory, mode, ape_config)
 
             if chat_message:
                 if chat_message.tool_calls:
-                    used_tools = maybe_invoke_tool_new(self.working_memory, mode, chat_message.tool_calls)
-                # elif chat_message.content:
-                #     used_tools = maybe_invoke_tool(self.working_memory, mode, chat_message.content)
+                    # Deep copy working memory BEFORE tool execution
+                    tool_runs = maybe_invoke_tool_new(self.working_memory, mode, chat_message.tool_calls)
+
+                    # Collect all new memories from tool invocations and add them to the ORIGINAL working memory
+                    for tool_run in tool_runs:
+                        tool_run.run()
 
         ctx.run(_execute_in_context)
 
@@ -138,9 +147,11 @@ class LibreAgentEngine:
             await asyncio.to_thread(self.execute, mode)
 
         try:
-            self.reasoning_queue.put_nowait((priority, _perform_reflection))
-            logger.info(f"Queued reflection with priority {priority} and mode {mode}")
-        except asyncio.QueueFull:
+            # Increment the counter and use it in the tuple
+            self.reasoning_queue_counter += 1
+            self.reasoning_queue.put_nowait((priority, self.reasoning_queue_counter, _perform_reflection))
+            logger.info(f"Queued reflection with priority {priority}, counter {self.reasoning_queue_counter} and mode {mode}")
+        except asyncio.QueueFull:  # Correct exception type
             logger.warning("Reasoning queue full, skipping scheduled reflection")
 
     def stop(self):
@@ -152,36 +163,3 @@ class LibreAgentEngine:
         self.working_memory.observers = []
         schedule.clear()
         logger.info("libreagentengine: fully stopped.")
-
-    def _recall(self, mode='quick'):
-        logger.debug("Starting recall process")
-
-        recalled_memories = self.working_memory.get_memories(metadata={'recalled': True})
-        recent_memories = self.working_memory.get_memories(metadata={'recalled': [False, None]}, last=40)
-
-        exclude_ids = [m['memory_id'] for m in self.working_memory.memories if m['memory_id'] != 'N/A']
-        logger.debug(f"Excluding {len(exclude_ids)} existing memories from recall")
-
-        if mode == 'quick':
-            last_user_input = self.working_memory.get_last_user_input()
-            logger.debug(f"Quick recall mode - last user input: {last_user_input}")
-
-            if not last_user_input:
-                logger.debug("No last user input found, skipping recall")
-                return
-
-            rr = RecallRecognizer()
-            recalled = rr.recall_memories(last_user_input, exclude_memory_ids=exclude_ids)
-        else:
-            all_memories = MemoryGraph().get_memories(last=2000)
-            logger.debug(f"Deep recall mode - considering {len(all_memories)} memories from graph")
-            recalled = [mem for mem in all_memories if mem['memory_id'] not in exclude_ids]
-
-        for memory in recalled:
-            memory['metadata']['recalled'] = True
-
-        self.working_memory.memories = recalled_memories
-        self.working_memory.memories.extend(recalled)
-        self.working_memory.memories.extend(recent_memories)
-
-        logger.info(f"{len(recalled)} memories recalled into WorkingMemory {self.working_memory.id}")

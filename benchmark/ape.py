@@ -1,18 +1,17 @@
 import json
+import argparse
 from typing import List
 from litellm import completion
-import litellm
 from tabulate import tabulate
+import litellm
+litellm.suppress_debug_info = True
 
 from benchmark.benchmark import run_benchmark
-
 from libre_agent.logger import logger
-import argparse
 
 class APE:
     def __init__(self, model="gemini/gemini-2.0-flash-thinking-exp-01-21"):
         self.model = model
-        litellm.suppress_debug_info = True
 
     def optimize_prompt(self, initial_prompt: str, ape_key: str, benchmark_path: str, num_variations: int = 5, attempts: int = 3, threads: int = 1):
         try:

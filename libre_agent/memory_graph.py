@@ -10,6 +10,10 @@ memory_graph_file_ctx = contextvars.ContextVar('memory_graph_file')
 
 from libre_agent.logger import logger
 
+def generate_memory_id():
+    random_part = secrets.token_hex(4)[:8]
+    return f"mem-{random_part}"
+
 class MemoryGraph:
     def __init__(self):
         self._lock = threading.Lock()
@@ -39,18 +43,25 @@ class MemoryGraph:
         if not parent_dir.exists():
             parent_dir.mkdir(parents=True, exist_ok=True)
 
+        # Check if the number of memories exceeds 200
+        if graph.number_of_nodes() > 200:
+            # Sort memories by temporal_scope
+            memories = [{'memory_id': node, **data} for node, data in graph.nodes(data=True)]
+            sorted_memories = sorted(memories, key=lambda x: x.get('metadata', {}).get('temporal_scope', 'working_memory'))
+
+            while graph.number_of_nodes() > 200:
+                memory_to_remove = sorted_memories.pop(0)  # Remove the first memory (oldest temporal_scope)
+                graph.remove_node(memory_to_remove['memory_id'])
+                logger.info(f"Removed memory {memory_to_remove['memory_id']} to maintain memory limit.")
+
         with open(graph_file, "wb") as f:
             pickle.dump(graph, f)
 
         logger.info(f"Memory graph saved successfully at {graph_file}.")
 
-    def generate_memory_id(self):
-        random_part = secrets.token_hex(4)[:8]
-        return f"mem-{random_part}"
-
     def add_memory(self, memory_type, content, metadata=None, parent_memory_ids=None, timestamp=None):
         with self._lock:
-            memory_id = self.generate_memory_id()
+            memory_id = generate_memory_id()
 
             if parent_memory_ids is None:
                 parent_memory_ids = []
@@ -82,6 +93,14 @@ class MemoryGraph:
                 timestamp=timestamp
             )
 
+            memory = {
+                "memory_id": memory_id,
+                "memory_type": memory_type,
+                "content": content,
+                "metadata": metadata,
+                "timestamp": timestamp,
+            }
+
             metadata_str = ', '.join(f"{k.capitalize()}={v}" for k, v in metadata.items())
             logger.debug(f"Added memory {memory_id}: Type={memory_type}, {metadata_str}")
 
@@ -92,7 +111,7 @@ class MemoryGraph:
 
             self.save_graph(graph)
 
-            return memory_id
+            return memory
 
     def update_memory(self, memory_id: str, metadata: dict, **kwargs):
         with self._lock:

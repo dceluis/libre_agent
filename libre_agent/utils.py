@@ -1,9 +1,9 @@
 import importlib
 import time
 from pathlib import Path
-import re
 
 from libre_agent.logger import logger
+from libre_agent.tools.base_tool import BaseTool
 from libre_agent.memory_graph import MemoryGraph
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.dataclasses import ChatResponseToolCall
@@ -33,7 +33,7 @@ def load_tools():
 def get_world_state_section():
     stats = MemoryGraph().get_stats()
     world_state = f"""
-  - Total Memories: {stats['total_memories']}{f" ({stats['total_memories'] - 100} over the limit of 100)" if stats['total_memories'] > 100 else ""}
+  - Total Memories: {stats['total_memories']}{f" ({stats['total_memories'] - 200} over the limit of 200)" if stats['total_memories'] > 200 else ""}
   - Total Connections: {stats['total_connections']}
   - Memory Types: {', '.join(f'{k}: {v}' for k, v in stats['memory_type_distribution'].items())}
   - Roles: {', '.join(f'{k}: {v}' for k, v in stats['role_distribution'].items())}
@@ -73,9 +73,34 @@ def format_memories(memories, format: str = 'default'):
 
     return formatted.strip()
 
-def maybe_invoke_tool_new(working_memory, mode: str = 'quick', response: list[ChatResponseToolCall] | None = None):
+class ToolRun:
+    def __init__(self, instance: BaseTool, params: dict = {}) -> None:
+        self.instance = instance
+        self.params = params
+
+    def run(self) -> list[dict] | bool:
+        tool_name = self.instance.name
+
+        try:
+            logger.debug(f"Invoking tool '{tool_name}' with parameters: {self.params}")
+
+            result = self.instance.run(**self.params)
+
+            result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}"
+            logger.info(result_msg)
+
+            return result
+        except Exception as e:
+            result_msg = f"Failed to run tool '{tool_name}': {e}"
+            logger.error(result_msg)
+
+            return False
+
+def maybe_invoke_tool_new(working_memory, mode: str = 'quick', response: list[ChatResponseToolCall] | None = None) -> list[ToolRun]:
     if not response:
-        return
+        return []
+
+    tool_runs = []
 
     for tool_call in response:
         available_tools = ToolRegistry.get_tools(mode=mode)
@@ -85,68 +110,19 @@ def maybe_invoke_tool_new(working_memory, mode: str = 'quick', response: list[Ch
         tool = next((t for t in available_tools if t['name'] == tool_name), None)
 
         if tool:
-            try:
-                params_dict = tool_call.function.arguments
+            params_dict = tool_call.function.arguments
 
-                logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
+            tool_instance = tool['class'](working_memory, mode=mode)
 
-                tool_instance = tool['class'](working_memory, mode=mode)
+            if params_dict:
+                result = ToolRun(tool_instance, params_dict)
+            else:
+                result = ToolRun(tool_instance)
 
-                if params_dict:
-                    result = tool_instance.run(**params_dict)
-                else:
-                    result = tool_instance.run()
-
-                result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}"
-                logger.info(result_msg)
-            except Exception as e:
-                result_msg = f"Failed to run tool '{tool_name}': {e}"
-                logger.error(result_msg)
+            tool_runs.append(result)
         else:
             result_msg = f"Tool '{tool_name}' not available."
             logger.warning(result_msg)
 
-# def maybe_invoke_tool(working_memory, mode: str = 'quick', reflection_text: str = ''):
-#     tools_match = re.findall(
-#
-#         r'<tool>\s*<name>([^<]+)</name>\s*<parameters>(.*?)</parameters>\s*</tool>',
-#         reflection_text,
-#         re.DOTALL
-#     )
-#
-#     if tools_match and working_memory is not None:
-#         available_tools = ToolRegistry.get_tools(mode=mode)
-#
-#         for tool_name, tool_params_block in tools_match:
-#             tool = next((t for t in available_tools if t['name'] == tool_name), None)
-#             if tool:
-#                 try:
-#                     # parse all <parameter> elements
-#                     all_params = re.findall(
-#                         r'<parameter>\s*<name>([^<]+)</name>\s*<value>(.*?)</value>\s*</parameter>',
-#                         tool_params_block,
-#                         re.DOTALL
-#                     )
-#                     params_dict = {}
-#                     for param_name, param_value in all_params:
-#                         params_dict[param_name.strip()] = param_value.strip()
-#
-#                     tool_instance = tool['class'](working_memory, mode=mode)
-#
-#                     logger.debug(f"Invoking tool '{tool_name}' with parameters: {params_dict}")
-#
-#                     if params_dict:
-#                         result = tool_instance.run(**params_dict)
-#                     else:
-#                         result = tool_instance.run()
-#
-#                     result_msg = f"Tool '{tool_name}' returned {'success' if result else 'failure'}"
-#                     logger.info(result_msg)
-#                 except Exception as e:
-#                     result_msg = f"Failed to run tool '{tool_name}': {e}"
-#                     logger.error(result_msg)
-#             else:
-#                 result_msg = f"Tool '{tool_name}' not available."
-#                 logger.warning(result_msg)
+    return tool_runs
 
-        # working_memory.add_memory(...)
