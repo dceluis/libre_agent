@@ -115,29 +115,31 @@ class LibreAgentEngine:
     def execute(self, mode='quick', ape_config={}, max_steps=5):
         # set up execution context with looping reasoning steps
         ctx = copy_context()
-        step = 0
-        while step < max_steps:
-            def _execute_in_context():
-                if self.memory_graph_file:
-                    MemoryGraph.set_graph_file(self.memory_graph_file)
-                unit = ReasoningUnit(model=self.reasoning_model)
-                return unit.reason(self.working_memory, mode, ape_config)
-            chat_message = ctx.run(_execute_in_context)
-            if not chat_message:
-                break
-            stop_loop = False
-            if chat_message.tool_calls:
-                tool_runs = maybe_invoke_tool_new(self.working_memory, mode, chat_message.tool_calls)
-                for tool_run in tool_runs:
-                    tool_run.run()
+        def _execute_in_context():
+            if self.memory_graph_file:
+                MemoryGraph.set_graph_file(self.memory_graph_file)
 
-                    # if a tool named "StopReasoningTool" is called, break the loop
-                    if tool_run.instance.name.lower() == "stopreasoningtool":
-                        stop_loop = True
-                        break
-            if stop_loop:
-                break
-            step += 1
+            step = 0
+            while step < max_steps:
+                unit = ReasoningUnit(model=self.reasoning_model)
+                chat_message = unit.reason(self.working_memory, mode, ape_config)
+                if not chat_message:
+                    break
+
+                stop_loop = False
+                if chat_message.tool_calls:
+                    tool_runs = maybe_invoke_tool_new(self.working_memory, mode, chat_message.tool_calls)
+                    for tool_run in tool_runs:
+                        tool_run.run()
+
+                        # if a tool named "StopReasoningTool" is called, break the loop
+                        if tool_run.instance.name.lower() == "stopreasoningtool":
+                            stop_loop = True
+                            break
+                if stop_loop:
+                    break
+                step += 1
+        ctx.run(_execute_in_context)
 
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('unit_name') == 'User':
