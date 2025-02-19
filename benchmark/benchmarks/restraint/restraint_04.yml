@@ -16,4 +16,3 @@ evaluations:
       Recent memories contain ONE clarification request.
       REASON: Vague commands should get single follow-up question
     type: inspect
-    skip_recall: true

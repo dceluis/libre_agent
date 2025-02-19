@@ -9,4 +9,3 @@ evaluations:
   - references: >
       a single system response that proactively asks clarifying questions, prompting the user to specify the nature of the help required.
     type: inspect
-    skip_recall: true

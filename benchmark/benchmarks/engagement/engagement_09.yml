@@ -10,4 +10,3 @@ evaluations:
   - references: >
       a single system response that actively reminds the user about the upcoming meeting, ensuring the event is clearly communicated.
     type: inspect
-    skip_recall: true

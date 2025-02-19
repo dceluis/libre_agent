@@ -11,4 +11,3 @@ evaluations:
       Recent Memories should only show the med reminder.
       REASON: Friendly reminders shouldn't start conversations
     type: inspect
-    skip_recall: true

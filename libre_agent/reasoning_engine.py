@@ -113,27 +113,32 @@ class LibreAgentEngine:
         self.async_task2 = asyncio.create_task(self.process_reasoning_queue())
         logger.info("libreagentengine: reflection scheduling has begun.")
 
-    def execute(self, mode='quick', skip_recall=False, ape_config={}):
-        # Set up execution context
+    def execute(self, mode='quick', ape_config={}, max_steps=5):
+        # set up execution context with looping reasoning steps
         ctx = copy_context()
+        step = 0
+        while step < max_steps:
+            def _execute_in_context():
+                if self.memory_graph_file:
+                    MemoryGraph.set_graph_file(self.memory_graph_file)
+                unit = ReasoningUnit(model=self.reasoning_model)
+                return unit.reason(self.working_memory, mode, ape_config)
+            chat_message = ctx.run(_execute_in_context)
+            if not chat_message:
+                break
+            stop_loop = False
+            if chat_message.tool_calls:
+                tool_runs = maybe_invoke_tool_new(self.working_memory, mode, chat_message.tool_calls)
+                for tool_run in tool_runs:
+                    tool_run.run()
 
-        def _execute_in_context():
-            if self.memory_graph_file:
-                MemoryGraph.set_graph_file(self.memory_graph_file)
-
-            unit = ReasoningUnit(model=self.reasoning_model)
-            chat_message = unit.reason(self.working_memory, mode, ape_config)
-
-            if chat_message:
-                if chat_message.tool_calls:
-                    # Deep copy working memory BEFORE tool execution
-                    tool_runs = maybe_invoke_tool_new(self.working_memory, mode, chat_message.tool_calls)
-
-                    # Collect all new memories from tool invocations and add them to the ORIGINAL working memory
-                    for tool_run in tool_runs:
-                        tool_run.run()
-
-        ctx.run(_execute_in_context)
+                    # if a tool named "StopReasoningTool" is called, break the loop
+                    if tool_run.instance.name.lower() == "stopreasoningtool":
+                        stop_loop = True
+                        break
+            if stop_loop:
+                break
+            step += 1
 
     async def reflex(self, memory):
         if memory['memory_type'] == 'external' and memory['metadata'].get('unit_name') == 'User':

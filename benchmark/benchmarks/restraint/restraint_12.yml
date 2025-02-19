@@ -21,4 +21,3 @@ evaluations:
       Recent memories contain ONE system utterance (lights off confirmation).
       REASON: User gratitude after resolution doesn't require response
     type: inspect  
-    skip_recall: true

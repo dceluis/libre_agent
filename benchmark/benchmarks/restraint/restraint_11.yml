@@ -16,4 +16,3 @@ evaluations:
       Recent memories contain ZERO new system utterances after the thumbs up user message
       REASON: Quick reactions after system messages don't require additional acknowledgement
     type: inspect
-    skip_recall: true

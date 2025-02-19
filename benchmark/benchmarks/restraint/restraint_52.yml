@@ -16,4 +16,3 @@ evaluations:
       Memory should only show ONE mode change message.
       REASON: Settings changes are done deals, not chat topics
     type: inspect
-    skip_recall: true

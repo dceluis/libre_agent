@@ -10,4 +10,3 @@ evaluations:
   - references: >
       a single system message that reminds the user about the upcoming maintenance, ensuring that they are informed and prepared.
     type: inspect
-    skip_recall: true

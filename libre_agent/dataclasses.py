@@ -129,11 +129,28 @@ class ChatCycle:
         if self.chat_request.tools:
             self.tools_info = chat_request_dict["tools"]
 
+        logging_messages = [
+            (f"Request {message['role']} Message", message['content']) for message in self.prompt_messages
+        ]
+        logging_messages.append(("Request Tools", f"{self.tools_info}"))
+
         completion_response = completion(**chat_request_dict)
 
-        chat_response = ChatResponse.from_dict(
-            completion_response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
-        )
+        if len(completion_response.choices) > 0:
+            chat_response = ChatResponse.from_dict(
+                completion_response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
+            )
+
+
+            logging_messages.extend(
+                [
+                    ("Response Content", f"{chat_response.content}"),
+                    ("Response Tool Calls", f"{chat_response.tool_calls}")
+                ]
+            )
+            self.chat_response = chat_response
+        else:
+            self.chat_response = None
 
         # Get input tokens
         self.input_tokens = completion_response['usage']['prompt_tokens']
@@ -141,18 +158,6 @@ class ChatCycle:
         # Get output tokens
         self.output_tokens = completion_response['usage']['completion_tokens']
         self.total_tokens = self.input_tokens + self.output_tokens
-
-        logging_messages = [
-            (f"Request {message['role']} Message", message['content']) for message in self.prompt_messages
-        ]
-
-        logging_messages.extend(
-            [
-                ("Request Tools", f"{self.tools_info}"),
-                ("Response Content", f"{chat_response.content}"),
-                ("Response Tool Calls", f"{chat_response.tool_calls}")
-            ]
-        )
 
         logger.info(
             "\n" +
@@ -168,5 +173,5 @@ class ChatCycle:
                 'unit': 'reasoning_unit'
             }
         )
-        self.chat_response = chat_response
-        return chat_response
+
+        return self.chat_response

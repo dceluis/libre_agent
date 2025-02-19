@@ -16,4 +16,3 @@ evaluations:
       Recent memories contain ONE system response to the user salute.
       REASON: No need to repeat the salute.
     type: inspect
-    skip_recall: true

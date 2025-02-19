@@ -11,4 +11,3 @@ evaluations:
       The recent memories contain ZERO utterances by the system, indicating that he system did not respond with a message.
       REASON: User sent an incomplete thought with no clear request
     type: inspect
-    skip_recall: true

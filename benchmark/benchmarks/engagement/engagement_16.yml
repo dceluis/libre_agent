@@ -10,4 +10,3 @@ evaluations:
   - references: >
       a single system response that informs the user of the successful system backup, confirming that the backup process has completed without error.
     type: inspect
-    skip_recall: true

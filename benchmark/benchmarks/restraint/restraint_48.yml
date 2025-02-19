@@ -11,4 +11,3 @@ evaluations:
       Recent Memories should only show ONE update alert.
       REASON: Announcements are FYI, not conversation starters
     type: inspect
-    skip_recall: true

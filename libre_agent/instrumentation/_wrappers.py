@@ -52,7 +52,7 @@ class _ExecuteWrapper:
             INPUT_VALUE: _get_input_value(wrapped, *args, **kwargs),
         }
         # explicitly add key input parameters for better observability
-        for key in ("mode", "skip_recall", "ape_config"):
+        for key in ("mode", "ape_config"):
             if key in kwargs:
                 if key == "ape_config":
                     attributes[key] = safe_json_dumps(kwargs[key])
@@ -189,14 +189,14 @@ class _ChatCycleWrapper:
                     attributes[SpanAttributes.LLM_MODEL_NAME] = instance.chat_request.model
 
                 # Output Messages (if present)
-                if chat_response.content:
+                if chat_response and chat_response.content:
                     attributes[SpanAttributes.LLM_OUTPUT_MESSAGES] = safe_json_dumps([{
                         MessageAttributes.MESSAGE_ROLE: chat_response.role,
                         MessageAttributes.MESSAGE_CONTENT: chat_response.content,
                     }])
 
                 # Tool Calls (if present)
-                if chat_response.tool_calls:
+                if chat_response and chat_response.tool_calls:
                     tool_calls_list = []
                     for tool_call in chat_response.tool_calls:
                         tool_call_attributes = {

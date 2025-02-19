@@ -16,4 +16,3 @@ evaluations:
       The recent memories contain ONE utterance by the system, indicating that the system acknowledged the command.
       REASON: There is no need for the system to acknowledge the user's message more than once.
     type: inspect
-    skip_recall: true

@@ -9,4 +9,3 @@ evaluations:
   - references: >
       a single system response that delivers a greeting, explicitly acknowledging the user's "good morning".
     type: inspect
-    skip_recall: true

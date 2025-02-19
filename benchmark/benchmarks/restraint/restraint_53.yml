@@ -16,4 +16,3 @@ evaluations:
       Memory should only have ONE sync confirmation.
       REASON: Background tasks should stay in the background
     type: inspect
-    skip_recall: true

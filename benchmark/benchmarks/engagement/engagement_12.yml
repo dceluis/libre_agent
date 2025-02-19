@@ -10,4 +10,3 @@ evaluations:
   - references: >
       a single system response that informs the user of the critical temperature alert.
     type: inspect
-    skip_recall: true

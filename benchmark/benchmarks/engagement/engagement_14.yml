@@ -10,4 +10,3 @@ evaluations:
   - references: >
       a single system message that notifies the user of the low battery status.
     type: inspect
-    skip_recall: true

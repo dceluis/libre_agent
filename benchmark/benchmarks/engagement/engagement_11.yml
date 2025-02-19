@@ -11,4 +11,3 @@ evaluations:
       a single system response that notifies the user of the successful data synchronization,
       confirming that the process has completed without issues.
     type: inspect
-    skip_recall: true

@@ -137,12 +137,13 @@ def populate_memory_graph(memories_data: list, working_memory):
 
     return True
 
-def run_scenario_attempt(run_id: str, scenario_data: dict, eval_idx: int, attempt: int, ape_config: dict = {}):
+def run_scenario_attempt(run_id: str, scenario_data: dict, eval_idx: int, attempt_idx: int, ape_config: dict = {}):
     runs_dir = os.path.join(os.path.dirname(__file__), 'tmp', 'runs')
     run_dir = os.path.join(runs_dir, run_id)
     scenario_file_name = scenario_data.get("file_name")
     eval_data = scenario_data.get("evaluations", [])[eval_idx]
     memories_data = scenario_data.get("memories", [])
+    ape_config_data = scenario_data.get("ape_config", {})
     question = eval_data.get("question")
 
     memories_for_attempt = copy.deepcopy(memories_data)
@@ -150,7 +151,9 @@ def run_scenario_attempt(run_id: str, scenario_data: dict, eval_idx: int, attemp
     if isinstance(references, str):
         references = [references]
 
-    temp_graph_filename = f'memory_graph_{scenario_file_name}_{eval_idx+1}_({attempt}).pkl'
+    ape_config_data.update(ape_config)
+
+    temp_graph_filename = f'memory_graph_{scenario_file_name}_{eval_idx+1}_({attempt_idx}).pkl'
     temp_graph_path = os.path.join(run_dir, temp_graph_filename)
 
     MemoryGraph.set_graph_file(temp_graph_path)
@@ -167,9 +170,7 @@ def run_scenario_attempt(run_id: str, scenario_data: dict, eval_idx: int, attemp
 
     populate_memory_graph(memories_for_attempt, wm)
 
-    skip_recall = eval_data.get("skip_recall", False)
-
-    engine.execute('quick', skip_recall=skip_recall, ape_config=ape_config)
+    engine.execute('quick', ape_config=ape_config_data)
 
     eval_type = eval_data.get("type", "")
     if eval_type == "qa":
@@ -186,7 +187,7 @@ def run_scenario_attempt(run_id: str, scenario_data: dict, eval_idx: int, attemp
     result = {
         "scenario": scenario_file_name,
         "attempt": scenario_output,
-        "attempt_number": attempt,
+        "attempt_number": attempt_idx,
         "eval_index": eval_idx + 1,  # human-friendly numbering
         "scenario_output": scenario_output,
         "status": evaluation['result'],
@@ -216,9 +217,9 @@ def build_benchmark(benchmark_dir, include_pattern: str, run_id: str, num_attemp
 
         evals = scenario_data.get("evaluations", [])
         # Create one job per evaluation per attempt
-        for eval_idx, evaluation in enumerate(evals):
-            for attempt in range(1, num_attempts + 1):
-                jobs.append((run_id, scenario_data, eval_idx, attempt, ape_config))
+        for eval_idx, _ in enumerate(evals):
+            for attempt_idx in range(1, num_attempts + 1):
+                jobs.append((run_id, scenario_data, eval_idx, attempt_idx, ape_config))
     return jobs
 
 def present_summary(all_results, total_time: float, num_threads: int):
@@ -289,6 +290,23 @@ def present_summary(all_results, total_time: float, num_threads: int):
         tablefmt="fancy_grid",
         numalign="center"
     ))
+
+    results.append("\n## PASSED TEST DETAILS ##")
+    for i, res in enumerate([r for r in all_results if r['status'] != 'Fail']):
+        failure_data = [
+            ("Scenario", res['scenario']),
+            (f"Attempt#{res['attempt_number']}", res['attempt']),
+            ("References", res['references']),
+            ("Details", res['details']),
+        ]
+
+        results.append(f"\n❌ Pass #{i+1}")
+        results.append(tabulate(
+            failure_data,
+            tablefmt="fancy_grid",
+            maxcolwidths=[None, 80],  # Wrap long values at 80 characters
+            colalign=("right", "left")
+        ))
 
     # Failure details with vertical tables
     if failed_tests > 0:

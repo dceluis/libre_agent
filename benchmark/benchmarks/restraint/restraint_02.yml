@@ -16,4 +16,3 @@ evaluations:
       Recent memories contain ONE action confirmation only.
       REASON: Critical commands require immediate action without conversational fluff
     type: inspect
-    skip_recall: true

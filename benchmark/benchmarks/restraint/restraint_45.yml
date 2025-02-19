@@ -16,4 +16,3 @@ evaluations:
       Recent memories should have only ONE final check result message.
       REASON: Once confirmed, no need to keep chatting about it
     type: inspect
-    skip_recall: true

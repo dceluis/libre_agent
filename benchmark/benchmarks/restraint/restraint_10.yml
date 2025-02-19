@@ -17,4 +17,3 @@ evaluations:
       Recent memories contain only ONE utterance by the system, indicating that he system only spoke once.
       REASON: The system has already sent a notification, and doesn't have a recent user message to respond to.
     type: inspect
-    skip_recall: true

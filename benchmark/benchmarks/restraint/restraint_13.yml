@@ -16,4 +16,3 @@ evaluations:
       Recent memories contain ONE system notification.
       REASON: Subsequent system-initiated messages without user interaction constitute spam
     type: inspect
-    skip_recall: true

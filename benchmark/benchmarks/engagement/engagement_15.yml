@@ -10,4 +10,3 @@ evaluations:
   - references: >
       a single system response that reminds the user to take their medication promptly.
     type: inspect
-    skip_recall: true

@@ -9,4 +9,3 @@ evaluations:
   - references: >
       a single system response that conveys empathy and offers constructive advice, or asks follow-up questions to better understand the user's emotional state.
     type: inspect
-    skip_recall: true

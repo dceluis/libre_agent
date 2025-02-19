@@ -16,4 +16,3 @@ evaluations:
       Memory should only have ONE status update.
       REASON: Green lights don't need extra commentary
     type: inspect
-    skip_recall: true

@@ -11,4 +11,3 @@ evaluations:
       Memory should only show ONE sync reminder.
       REASON: Scheduled nudges shouldn't be sent twice.
     type: inspect
-    skip_recall: true

@@ -9,4 +9,3 @@ evaluations:
   - references: >
       a single system response that acknowledges the delay.
     type: inspect
-    skip_recall: true

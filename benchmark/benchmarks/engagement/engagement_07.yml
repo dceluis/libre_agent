@@ -9,4 +9,3 @@ evaluations:
   - references: >
       a single system response that addresses the meta query by explaining its conversational style or reasoning for silence, inviting further discussion.
     type: inspect
-    skip_recall: true

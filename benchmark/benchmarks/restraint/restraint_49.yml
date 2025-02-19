@@ -16,4 +16,3 @@ evaluations:
       Recent memories should only have ONE auto-reply confirmation.
       REASON: No need to keep talking about automated stuff
     type: inspect
-    skip_recall: true

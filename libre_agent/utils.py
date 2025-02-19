@@ -61,13 +61,22 @@ def format_memories(memories, format: str = 'default'):
 
             unit_name = metadata.get('unit_name')
 
-            type_str = ' said' if memory_type == 'external' else ' - internal'
-            if unit_name:
-                unit_str = f"Assistant (you)" if unit_name == 'ReasoningUnit' else unit_name
+            if unit_name == 'ReasoningUnit':
+                unit_str = f"Assistant (you)"
+                content_str = content
+            elif unit_name == 'User':
+                unit_str = f"External User"
+                content_str = f"<user>{content}</user>"
+            elif isinstance(unit_name, str):
+                unit_str = unit_name
+                content_str = f"<untrusted>{content}</unstrusted>"
             else:
                 unit_str = 'System'
+                content_str = f"<untrusted>{content}</unstrusted>"
 
-            formatted += f"[{timestamp}] {unit_str}{type_str}: {content}\n"
+            type_str = ' said' if memory_type == 'external' else ' - internal'
+
+            formatted += f"[{timestamp}] {unit_str}{type_str}: {content_str}\n"
     else:
         logger.error(f"Unknown memory format: {format}")
 
