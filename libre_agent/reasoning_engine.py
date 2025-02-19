@@ -6,7 +6,6 @@ from libre_agent.memory_graph import MemoryGraph
 from libre_agent.working_memory import WorkingMemory, WorkingMemoryAsync
 from libre_agent.logger import logger
 from libre_agent.utils import load_units, load_tools, maybe_invoke_tool_new
-from libre_agent.recall_recognizer import RecallRecognizer
 from libre_agent.units.reasoning_unit import ReasoningUnit
 
 from contextvars import ContextVar, copy_context

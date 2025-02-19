@@ -13,6 +13,7 @@ memories:
 
 evaluations:
   - references: >
-      The Recent memories section contains the user salute and only ONE system response to the salute.
-      REASON: No need to repeat the salute.
+      The Recent memories section can contain zero or more non-assistant entries.
+      The Recent memories section must contain only ONE assistant message.
+      REASON: No need to repeat the reply or send more than one reply.
     type: inspect

@@ -1,6 +1,7 @@
 from libre_agent.tools.base_tool import BaseTool
 from libre_agent.tool_registry import ToolRegistry
 from libre_agent.recall_recognizer import RecallRecognizer
+from libre_agent.memory_graph import memory_graph
 from libre_agent.logger import logger
 
 class RecallTool(BaseTool):
@@ -29,10 +30,10 @@ class RecallTool(BaseTool):
         else:
             final_task = f"Recall anything relevant"
 
-        if number:
-            final_task = f"{final_task}\n(the requester mentioned a preference for {number} recalled memories)"
-        else:
+        if number is None:
             final_task = f"{final_task}\n(the requester mentioned a preference for any number of recalled memories)"
+        else:
+            final_task = f"{final_task}\n(the requester mentioned a preference for {number} recalled memories)"
 
         try:
             logger.debug("Starting recall process")
@@ -43,8 +44,17 @@ class RecallTool(BaseTool):
             exclude_ids = [m['memory_id'] for m in self.working_memory.memories]
             logger.debug(f"Excluding {len(exclude_ids)} existing memories from recall")
 
-            rr = RecallRecognizer()
-            recalled = rr.recall_memories(final_task, exclude_memory_ids=exclude_ids)
+            retrievable_memories = memory_graph.get_memories(last=1000)
+            if exclude_ids:
+                retrievable_memories = [m for m in retrievable_memories if m['memory_id'] not in exclude_ids]
+
+            if number is not None and int(number) >= len(retrievable_memories):
+                logger.info(f"RecallTool returned fast ({len(retrievable_memories)}) memories")
+                recalled = retrievable_memories
+            else:
+                rr = RecallRecognizer(memories=retrievable_memories)
+
+                recalled = rr.recall_memories(final_task)
 
             logger.info(f"{len(recalled)} memories recalled by RecallTool.")
 
@@ -56,7 +66,7 @@ class RecallTool(BaseTool):
             self.working_memory.memories.extend(recalled)
             self.working_memory.memories.extend(recent_memories)
 
-            summary_content = f"RecallTool result: found and added ({len(recalled)}) relevant memories."
+            summary_content = f"RecallTool(filter: '{filter}', number: '{number}') result: found and added ({len(recalled)}) relevant memories."
             self.working_memory.add_memory(
                 memory_type="internal",
                 content=summary_content,

@@ -8,18 +8,14 @@ import traceback
 
 class RecallRecognizer:
 
-    def recall_memories(self, prompt, exclude_memory_ids=None):
-        memories = memory_graph.get_memories(last=1000)
+    def __init__(self, memories: list | None = None) -> None:
+        self.memories = memories or memory_graph.get_all_memories()
 
-        # exclude provided memory ids
-        logger.debug(f"Excluded memories: {exclude_memory_ids}")
-        if exclude_memory_ids:
-            memories = [m for m in memories if m['memory_id'] not in exclude_memory_ids]
-
+    def recall_memories(self, prompt):
         system_prompt = self.construct_system_prompt()
 
         # build prompt for llm-based recall
-        constructed_prompt = self.construct_prompt(prompt, memories)
+        constructed_prompt = self.construct_prompt(prompt, self.memories)
 
         # call llm
         try:
@@ -45,7 +41,7 @@ class RecallRecognizer:
             memory_ids = self.parse_response(reply)
 
             # filter original memory set
-            filtered_memories = [m for m in memories if m['memory_id'] in memory_ids]
+            filtered_memories = [m for m in self.memories if m['memory_id'] in memory_ids]
 
             return filtered_memories
         except Exception as e:
