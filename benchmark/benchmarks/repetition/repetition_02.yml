@@ -1,0 +1,33 @@
+title: "Salute conciseness"
+description: No repeated salute
+memories:
+  - timestamp: "21 seconds ago"
+    role: user
+    content: "Hi"
+    working_memory: True
+
+  - timestamp: "18 seconds ago"
+    role: assistant
+    content: "Hello! How can I assist you today?"
+    working_memory: True
+
+  - timestamp: "12 seconds ago"
+    role: user
+    content: "nothing, I just want to chat"
+    working_memory: True
+
+  - timestamp: "10 seconds ago"
+    role: assistant
+    content: "Okay, what would you like to chat about?"
+    working_memory: True
+
+  - timestamp: "3 seconds ago"
+    role: user
+    content: "whatever you like"
+    working_memory: True
+
+evaluations:
+  - references: >
+      The 'Recent memories' section must contain only ONE assistant message (marked with 'Assistant:') after the line 'User: "whatever you like"'.
+      Messages before 'User: "whatever you like"' are permitted.
+    type: inspect

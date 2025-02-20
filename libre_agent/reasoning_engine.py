@@ -119,9 +119,10 @@ class LibreAgentEngine:
             if self.memory_graph_file:
                 MemoryGraph.set_graph_file(self.memory_graph_file)
 
+            unit = ReasoningUnit(model=self.reasoning_model)
+
             step = 0
             while step < max_steps:
-                unit = ReasoningUnit(model=self.reasoning_model)
                 chat_message = unit.reason(self.working_memory, mode, ape_config)
                 if not chat_message:
                     break
