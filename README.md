@@ -60,3 +60,32 @@ python main.py --deep-schedule=4 --print-internals
 ```
 
 This command schedules deep reflections every 4 minutes and quick reflections every 2 minutes while printing internal memories.
+
+## Deploying the Telegram Bot
+
+LibreAgent includes a Telegram bot interface, which allows you to interact with the assistant via Telegram. Follow these steps to deploy the Telegram bot:
+
+1. **Set Environment Variables:**
+
+   Ensure you have a valid Telegram bot token and Gemini API key. Create or update your `.env` file in the project root with the following entries:
+
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+   ```
+
+2. **Run Using Docker Compose:**
+
+   You can deploy the Telegram bot along with the Phoenix service using Docker Compose. From the project root, run:
+
+   ```bash
+   docker-compose up --build
+   ```
+
+   This command builds and starts both the Telegram bot and the Phoenix service as defined in the `docker-compose.yml` file.
+
+3. **Verification:**
+
+   Once the container is running, send a message to your Telegram bot (using the bot username provided by BotFather) to verify that it is operational.
+
+You are now ready to use LibreAgent's Telegram bot interface for interacting with the assistant.
