@@ -35,7 +35,7 @@ class LibreAgentEngine:
             self.working_memory = WorkingMemoryAsync()
 
         self.stop_flag = threading.Event()
-        self.reasoning_queue = PriorityQueue(maxsize=3)
+        self.reasoning_queue = PriorityQueue(maxsize=1)
         self.reasoning_lock = threading.Lock()
         self.async_task1 = None
         self.async_task2 = None

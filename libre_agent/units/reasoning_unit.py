@@ -265,19 +265,15 @@ Following the chain of command, authority may be delegated to these sources by e
         config = {
             'quick': {
                 'step_name': 'quick_reflection',
-                'instruction_note': "quick mode - maintain a conversation",
             },
             'deep': {
                 'step_name': 'deep_reflection',
-                'instruction_note': "scheduled mode - perform memory preservation and cleanup",
             },
             'migration': {
                 'step_name': 'migration_reflection',
-                'instruction_note': "migration mode - export system summary",
             },
         }.get(mode, {
             'step_name': 'quick_reflection',
-            'instruction_note': "quick mode - maintain a conversation",
         })
 
         current_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
@@ -312,9 +308,6 @@ This report contains the current system state as automatically compiled by the R
 
 #### Recent Memories - Current conversation (Total: {len(recent_memories)}):
 {formatted_recent}
-
-## Instruction Note {{authority=developer}}
-{config['instruction_note']}
 
 ## Instruction {{authority=developer}}
 This is the system's instruction provider talking, not the external User(s) identified in conversation logs.
